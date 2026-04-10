@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: fabric_user
+      POSTGRES_PASSWORD: fabric_password
+      POSTGRES_DB: yarn_fabric_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - DB_PROVIDER=postgresql
+      - DATABASE_URL=postgresql://fabric_user:fabric_password@database:5432/yarn_fabric_db?schema=public
+      - JWT_SECRET=change_this_to_something_secure
+      - CORS_ORIGIN=*
+    depends_on:
+      - database
+    command: sh -c "npx prisma migrate deploy && npm start"
+
+volumes:
+  pgdata:

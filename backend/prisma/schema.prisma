@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // Change to "postgresql" manually for cloud
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────────────
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  role         String   @default("user") // "admin" | "user"
+  createdAt    DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────────────
+// MASTER DATA TABLES
+// ─────────────────────────────────────────────────────
+
+model MillName {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  yarns     Yarn[]
+}
+
+model KnitterName {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  knittings Knitting[]
+}
+
+model DyerName {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  dyeings   Dyeing[]
+}
+
+model CompacterName {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  createdAt   DateTime     @default(now())
+  compactings Compacting[]
+}
+
+model Colour {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  createdAt   DateTime     @default(now())
+  dyeings     Dyeing[]
+  compactings Compacting[]
+}
+
+model WashType {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  dyeings   Dyeing[]
+}
+
+model FabricDescription {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  knittings Knitting[]
+}
+
+// ─────────────────────────────────────────────────────
+// CORE PRODUCTION TABLES
+// ─────────────────────────────────────────────────────
+
+model Yarn {
+  id           Int        @id @default(autoincrement())
+  hf_code      String     @unique
+  millName     MillName   @relation(fields: [mill_name_id], references: [id])
+  mill_name_id Int
+  description  String
+  count        String
+  quality      String     // "rl" or "vl"
+  no_of_bags   Float
+  bag_weight   Float
+  total_weight Float      
+  rate_per_kg  Float
+  total_cost   Float      
+  date         DateTime
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Knitting {
+  id                    Int               @id @default(autoincrement())
+  hf_code               String
+  knitterName           KnitterName       @relation(fields: [knitter_name_id], references: [id])
+  knitter_name_id       Int
+  yarn_quantity         Float
+  loop_length           Float
+  dia                   Float
+  count                 String
+  gauge                 String
+  date_given            DateTime
+  fabricDescription     FabricDescription @relation(fields: [fabric_description_id], references: [id])
+  fabric_description_id Int
+  grey_fabric_weight    Float
+  gsm                   Float
+  no_of_rolls           Int
+  date                  DateTime
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+}
+
+model Dyeing {
+  id             Int      @id @default(autoincrement())
+  hf_code        String
+  lot_no         String   @unique
+  initial_weight Float
+  dyerName       DyerName @relation(fields: [dyer_name_id], references: [id])
+  dyer_name_id   Int
+  washType       WashType @relation(fields: [wash_type_id], references: [id])
+  wash_type_id   Int
+  colour         Colour   @relation(fields: [colour_id], references: [id])
+  colour_id      Int
+  gg             Float
+  initial_dia    Float
+  final_dia      Float
+  initial_gsm    Float
+  final_gsm      Float
+  final_quantity Float
+  no_of_rolls    Int
+  final_weight   Float
+  date           DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Compacting {
+  id                Int      @id @default(autoincrement())
+  hf_code           String
+  lot_no            String   @unique
+  initial_weight    Float
+  compacterName     CompacterName @relation(fields: [compacter_name_id], references: [id])
+  compacter_name_id Int
+  final_dia         Float
+  colour            Colour   @relation(fields: [colour_id], references: [id])
+  colour_id         Int
+  final_weight      Float
+  final_gsm         Float
+  process_loss      Float    // auto
+  date              DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
