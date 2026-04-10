@@ -61,7 +61,9 @@ router.post('/', async (req, res, next) => {
     const {
       hf_code, knitter_name_id, yarn_quantity,
       loop_length, dia, count, gauge, date_given,
-      fabric_description_id, grey_fabric_weight, gsm, no_of_rolls, date,
+      fabric_description_id, grey_fabric_weight,
+      other_yarn_type, other_yarn_percentage,
+      gsm, no_of_rolls, date,
     } = req.body;
 
     // Verify HK No exists
@@ -81,6 +83,8 @@ router.post('/', async (req, res, next) => {
         date_given: new Date(date_given),
         fabric_description_id: Number(fabric_description_id),
         grey_fabric_weight: Number(grey_fabric_weight),
+        other_yarn_type,
+        other_yarn_percentage: other_yarn_percentage ? Number(other_yarn_percentage) : null,
         gsm: Number(gsm),
         no_of_rolls: Number(no_of_rolls),
         date: new Date(date),
@@ -100,7 +104,9 @@ router.put('/:id', async (req, res, next) => {
     const {
       hf_code, knitter_name_id, yarn_quantity,
       loop_length, dia, count, gauge, date_given,
-      fabric_description_id, grey_fabric_weight, gsm, no_of_rolls, date,
+      fabric_description_id, grey_fabric_weight,
+      other_yarn_type, other_yarn_percentage,
+      gsm, no_of_rolls, date,
     } = req.body;
 
     const record = await prisma.knitting.update({
@@ -116,6 +122,8 @@ router.put('/:id', async (req, res, next) => {
         date_given: new Date(date_given),
         fabric_description_id: Number(fabric_description_id),
         grey_fabric_weight: Number(grey_fabric_weight),
+        other_yarn_type,
+        other_yarn_percentage: other_yarn_percentage ? Number(other_yarn_percentage) : null,
         gsm: Number(gsm),
         no_of_rolls: Number(no_of_rolls),
         date: new Date(date),

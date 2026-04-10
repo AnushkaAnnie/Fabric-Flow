@@ -19,8 +19,9 @@ const Knitting = () => {
     hf_code: '', knitter_name_id: '',
     yarn_quantity: '', loop_length: '', dia: '', count: '', gauge: '',
     date_given: new Date().toISOString().split('T')[0],
-    fabric_description_id: '', grey_fabric_weight: '', gsm: '', no_of_rolls: '',
-    date: new Date().toISOString().split('T')[0]
+    fabric_description_id: '', grey_fabric_weight: '', 
+    other_yarn_type: '', other_yarn_percentage: '',
+    gsm: '', no_of_rolls: '', date: new Date().toISOString().split('T')[0]
   });
 
   const fetchData = async () => {
@@ -80,6 +81,9 @@ const Knitting = () => {
     { field: 'knitterName', headerName: 'Knitter', renderCell: (row) => row.knitterName?.name },
     { field: 'fabricDescription', headerName: 'Fabric', renderCell: (row) => row.fabricDescription?.name },
     { field: 'grey_fabric_weight', headerName: 'Grey Wt' },
+    { field: 'other_yarn_type', headerName: 'Other Yarn' },
+    { field: 'other_yarn_percentage', headerName: 'Other Y. %' },
+    { field: 'gsm', headerName: 'GSM' },
     { field: 'yarn_quantity', headerName: 'Yarn Qty' },
     { field: 'date', headerName: 'Date', renderCell: (row) => new Date(row.date).toLocaleDateString() },
   ];
@@ -97,8 +101,9 @@ const Knitting = () => {
               hf_code: '', knitter_name_id: '',
               yarn_quantity: '', loop_length: '', dia: '', count: '', gauge: '',
               date_given: new Date().toISOString().split('T')[0],
-              fabric_description_id: '', grey_fabric_weight: '', gsm: '', no_of_rolls: '',
-              date: new Date().toISOString().split('T')[0]
+              fabric_description_id: '', grey_fabric_weight: '',
+              other_yarn_type: '', other_yarn_percentage: '',
+              gsm: '', no_of_rolls: '', date: new Date().toISOString().split('T')[0]
             });
             setModalOpen(true);
           }}
@@ -158,10 +163,16 @@ const Knitting = () => {
               <TextField fullWidth type="number" label="GSM" value={formData.gsm} onChange={(e) => setFormData({...formData, gsm: e.target.value})} />
             </Grid>
 
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth type="number" label="Grey Fabric Wt" value={formData.grey_fabric_weight} onChange={(e) => setFormData({...formData, grey_fabric_weight: e.target.value})} />
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth label="Grey Fabric Weight" type="number" inputProps={{step:"any"}} value={formData.grey_fabric_weight} onChange={(e) => setFormData({...formData, grey_fabric_weight: e.target.value})} required />
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth label="Other Yarn Type (Optional)" value={formData.other_yarn_type} onChange={(e) => setFormData({...formData, other_yarn_type: e.target.value})} />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth label="Other Yarn % (Optional)" type="number" inputProps={{step:"any"}} value={formData.other_yarn_percentage || ''} onChange={(e) => setFormData({...formData, other_yarn_percentage: e.target.value})} />
+            </Grid>
+            <Grid item xs={12} sm={6}>
               <TextField fullWidth type="number" label="No of Rolls" value={formData.no_of_rolls} onChange={(e) => setFormData({...formData, no_of_rolls: e.target.value})} />
             </Grid>
 

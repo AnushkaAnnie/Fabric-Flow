@@ -80,6 +80,12 @@ router.post('/', async (req, res, next) => {
     const total_weight = Number(no_of_bags) * Number(bag_weight);
     const total_cost = total_weight * Number(rate_per_kg);
 
+    // Check for unique hf_code
+    const existing = await prisma.yarn.findUnique({ where: { hf_code } });
+    if (existing) {
+      return res.status(400).json({ message: `HF Code "${hf_code}" already exists.` });
+    }
+
     const yarn = await prisma.yarn.create({
       data: {
         hf_code,
@@ -113,6 +119,17 @@ router.put('/:id', async (req, res, next) => {
 
     const total_weight = Number(no_of_bags) * Number(bag_weight);
     const total_cost = total_weight * Number(rate_per_kg);
+
+    // Check for unique hf_code (excluding current record)
+    const existing = await prisma.yarn.findFirst({
+      where: { 
+        hf_code,
+        id: { not: Number(req.params.id) }
+      }
+    });
+    if (existing) {
+      return res.status(400).json({ message: `HF Code "${hf_code}" is already in use by another yarn lot.` });
+    }
 
     const yarn = await prisma.yarn.update({
       where: { id: Number(req.params.id) },

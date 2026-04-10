@@ -109,6 +109,8 @@ model Knitting {
   fabricDescription     FabricDescription @relation(fields: [fabric_description_id], references: [id])
   fabric_description_id Int
   grey_fabric_weight    Float
+  other_yarn_type       String?
+  other_yarn_percentage Float?
   gsm                   Float
   no_of_rolls           Int
   date                  DateTime

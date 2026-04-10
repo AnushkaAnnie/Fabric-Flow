@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Box, Typography, Grid, Card, CardContent } from '@mui/material';
 import { Database, Scissors, Droplets, PackageCheck, AlertTriangle } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 import api from '../api/axios';
 
 const StatCard = ({ title, value, subtitle, icon, color }) => (
@@ -37,12 +36,6 @@ const Dashboard = () => {
   }, []);
 
   if (!stats) return <Typography>Loading dashboard...</Typography>;
-
-  const pieData = [
-    { name: 'Grey Fabric', value: stats.sums.totalGreyFabric || 1, color: '#fbbf24' },
-    { name: 'Dyed Fabric', value: stats.sums.totalDyedFabric || 1, color: '#ef4444' },
-    { name: 'Compacted Fabric', value: stats.sums.totalCompactedFabric || 1, color: '#14b8a6' },
-  ];
 
   return (
     <Box>
@@ -87,53 +80,6 @@ const Dashboard = () => {
         </Grid>
       </Grid>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Card sx={{ p: 3, height: 400, display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="h6" mb={2}>Production Pipeline Vol (kg)</Typography>
-            <Box sx={{ flexGrow: 1, minHeight: 0, width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={pieData}>
-                  <XAxis dataKey="name" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: 8, color: '#fff' }} />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </Box>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Card sx={{ p: 3, height: 400, display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="h6" mb={2}>Volume Distribution</Typography>
-            <Box sx={{ flexGrow: 1, minHeight: 0, width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: 8, color: '#fff' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </Box>
-          </Card>
-        </Grid>
-      </Grid>
     </Box>
   );
 };
