@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Button, Grid, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
+import { Box, Typography, Button, Grid, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Chip } from '@mui/material';
 import { Plus } from 'lucide-react';
 import DataTable from '../components/common/DataTable';
 import SmartDropdown from '../components/common/SmartDropdown';
@@ -21,7 +21,7 @@ const Knitting = () => {
     date_given: new Date().toISOString().split('T')[0],
     fabric_description_id: '', grey_fabric_weight: '', 
     other_yarn_type: '', other_yarn_percentage: '',
-    gsm: '', no_of_rolls: '', date: new Date().toISOString().split('T')[0]
+    no_of_rolls: '', date: new Date().toISOString().split('T')[0]
   });
 
   const fetchData = async () => {
@@ -39,6 +39,18 @@ const Knitting = () => {
   useEffect(() => {
     fetchData();
   }, [page, limit, search]);
+
+  useEffect(() => {
+    if (formData.hf_code) {
+      api.get(`/yarn/hf/${formData.hf_code}`)
+        .then(res => {
+          if (res.data && res.data.count) {
+            setFormData(prev => ({ ...prev, count: res.data.count }));
+          }
+        })
+        .catch(err => console.error('Error fetching yarn details for auto-fill:', err));
+    }
+  }, [formData.hf_code]);
 
   const handleSave = async () => {
     try {
@@ -66,13 +78,12 @@ const Knitting = () => {
   };
 
   const handleDelete = async (row) => {
-    if (window.confirm(`Delete Knitting record?`)) {
-      try {
-        await api.delete(`/knitting/${row.id}`);
-        fetchData();
-      } catch (err) {
-        console.error(err);
-      }
+    try {
+      await api.delete(`/knitting/${row.id}`);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Error deleting structure.');
     }
   };
 
@@ -80,12 +91,25 @@ const Knitting = () => {
     { field: 'hf_code', headerName: 'HF Code' },
     { field: 'knitterName', headerName: 'Knitter', renderCell: (row) => row.knitterName?.name },
     { field: 'fabricDescription', headerName: 'Fabric', renderCell: (row) => row.fabricDescription?.name },
+    { field: 'yarn_quantity', headerName: 'Yarn Qty' },
+    { field: 'loop_length', headerName: 'Loop Length' },
+    { field: 'dia', headerName: 'Dia' },
+    { field: 'count', headerName: 'Count' },
+    { field: 'gauge', headerName: 'Gauge' },
     { field: 'grey_fabric_weight', headerName: 'Grey Wt' },
+    { field: 'no_of_rolls', headerName: 'No of Rolls' },
     { field: 'other_yarn_type', headerName: 'Other Yarn' },
     { field: 'other_yarn_percentage', headerName: 'Other Y. %' },
-    { field: 'gsm', headerName: 'GSM' },
-    { field: 'yarn_quantity', headerName: 'Yarn Qty' },
-    { field: 'date', headerName: 'Date', renderCell: (row) => new Date(row.date).toLocaleDateString() },
+    { 
+      field: 'status', 
+      headerName: 'Status', 
+      renderCell: (row) => {
+        const isComplete = Number(row.grey_fabric_weight) > 0;
+        return <Chip label={isComplete ? "Completed" : "Pending"} color={isComplete ? "success" : "warning"} size="small" variant="outlined" />;
+      }
+    },
+    { field: 'date_given', headerName: 'Date Given', renderCell: (row) => row.date_given ? new Date(row.date_given).toLocaleDateString() : '-' },
+    { field: 'date', headerName: 'Date Received', renderCell: (row) => new Date(row.date).toLocaleDateString() },
   ];
 
   return (
@@ -103,7 +127,7 @@ const Knitting = () => {
               date_given: new Date().toISOString().split('T')[0],
               fabric_description_id: '', grey_fabric_weight: '',
               other_yarn_type: '', other_yarn_percentage: '',
-              gsm: '', no_of_rolls: '', date: new Date().toISOString().split('T')[0]
+              no_of_rolls: '', date: new Date().toISOString().split('T')[0]
             });
             setModalOpen(true);
           }}
@@ -150,21 +174,18 @@ const Knitting = () => {
               <TextField fullWidth type="number" label="Loop Length" value={formData.loop_length} onChange={(e) => setFormData({...formData, loop_length: e.target.value})} />
             </Grid>
 
-            <Grid item xs={12} sm={3}>
+            <Grid item xs={12} sm={4}>
               <TextField fullWidth type="number" label="Dia" value={formData.dia} onChange={(e) => setFormData({...formData, dia: e.target.value})} />
             </Grid>
-            <Grid item xs={12} sm={3}>
+            <Grid item xs={12} sm={4}>
               <TextField fullWidth label="Count" value={formData.count} onChange={(e) => setFormData({...formData, count: e.target.value})} />
             </Grid>
-            <Grid item xs={12} sm={3}>
+            <Grid item xs={12} sm={4}>
               <TextField fullWidth label="Gauge" value={formData.gauge} onChange={(e) => setFormData({...formData, gauge: e.target.value})} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth type="number" label="GSM" value={formData.gsm} onChange={(e) => setFormData({...formData, gsm: e.target.value})} />
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Grey Fabric Weight" type="number" inputProps={{step:"any"}} value={formData.grey_fabric_weight} onChange={(e) => setFormData({...formData, grey_fabric_weight: e.target.value})} required />
+              <TextField fullWidth label="Grey Fabric Weight" type="number" inputProps={{step:"any"}} value={formData.grey_fabric_weight} onChange={(e) => setFormData({...formData, grey_fabric_weight: e.target.value})} />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField fullWidth label="Other Yarn Type (Optional)" value={formData.other_yarn_type} onChange={(e) => setFormData({...formData, other_yarn_type: e.target.value})} />

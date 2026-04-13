@@ -59,10 +59,15 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const {
-      hf_code, lot_no, initial_weight, dyer_name_id, wash_type_id, colour_id,
-      gg, initial_dia, final_dia, initial_gsm, final_gsm,
-      final_quantity, no_of_rolls, final_weight, date,
+      hf_code, count, lot_no, initial_weight, dyer_name_id, wash_type_id, colour_id,
+      gg, initial_dia, final_dia,
+      no_of_rolls, final_weight, date,
     } = req.body;
+
+    // Calculate process loss based on ((initial_weight - final_weight) / initial_weight) * 100
+    const iw = Number(initial_weight);
+    const fw = Number(final_weight);
+    const process_loss = iw > 0 ? ((iw - fw) / iw) * 100 : 0;
 
     // Check if already dyed
     const existing = await prisma.dyeing.findUnique({ where: { lot_no } });
@@ -71,6 +76,7 @@ router.post('/', async (req, res, next) => {
     const record = await prisma.dyeing.create({
       data: {
         hf_code,
+        count,
         lot_no,
         initial_weight: Number(initial_weight),
         dyer_name_id: Number(dyer_name_id),
@@ -79,11 +85,9 @@ router.post('/', async (req, res, next) => {
         gg: Number(gg),
         initial_dia: Number(initial_dia),
         final_dia: Number(final_dia),
-        initial_gsm: Number(initial_gsm),
-        final_gsm: Number(final_gsm),
-        final_quantity: Number(final_quantity),
         no_of_rolls: Number(no_of_rolls),
         final_weight: Number(final_weight),
+        process_loss: process_loss,
         date: new Date(date),
       },
       include: INCLUDE,
@@ -99,15 +103,21 @@ router.post('/', async (req, res, next) => {
 router.put('/:id', async (req, res, next) => {
   try {
     const {
-      hf_code, initial_weight, dyer_name_id, wash_type_id, colour_id,
-      gg, initial_dia, final_dia, initial_gsm, final_gsm,
-      final_quantity, no_of_rolls, final_weight, date,
+      hf_code, count, initial_weight, dyer_name_id, wash_type_id, colour_id,
+      gg, initial_dia, final_dia,
+      no_of_rolls, final_weight, date,
     } = req.body;
+
+    // Calculate process loss
+    const iw = Number(initial_weight);
+    const fw = Number(final_weight);
+    const process_loss = iw > 0 ? ((iw - fw) / iw) * 100 : 0;
 
     const record = await prisma.dyeing.update({
       where: { id: Number(req.params.id) },
       data: {
         hf_code,
+        count,
         initial_weight: Number(initial_weight),
         dyer_name_id: Number(dyer_name_id),
         wash_type_id: Number(wash_type_id),
@@ -115,11 +125,9 @@ router.put('/:id', async (req, res, next) => {
         gg: Number(gg),
         initial_dia: Number(initial_dia),
         final_dia: Number(final_dia),
-        initial_gsm: Number(initial_gsm),
-        final_gsm: Number(final_gsm),
-        final_quantity: Number(final_quantity),
         no_of_rolls: Number(no_of_rolls),
         final_weight: Number(final_weight),
+        process_loss: process_loss,
         date: new Date(date),
       },
       include: INCLUDE,

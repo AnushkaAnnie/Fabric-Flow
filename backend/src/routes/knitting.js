@@ -63,13 +63,25 @@ router.post('/', async (req, res, next) => {
       loop_length, dia, count, gauge, date_given,
       fabric_description_id, grey_fabric_weight,
       other_yarn_type, other_yarn_percentage,
-      gsm, no_of_rolls, date,
+      no_of_rolls, date,
     } = req.body;
 
-    // Verify HK No exists
     // Verify HF Code exists
-    const yarn = await prisma.yarn.findUnique({ where: { hf_code } });
+    const yarn = await prisma.yarn.findFirst({ where: { hf_code } });
     if (!yarn) return res.status(400).json({ message: `HF Code "${hf_code}" not found.` });
+
+    // Validate yarn_quantity does not exceed available yarn weight
+    const usedAgg = await prisma.knitting.aggregate({
+      _sum: { yarn_quantity: true },
+      where: { hf_code },
+    });
+    const usedQty = usedAgg._sum.yarn_quantity || 0;
+    const newQty = Number(yarn_quantity);
+    if (usedQty + newQty > yarn.total_weight) {
+      return res.status(400).json({
+        message: `Yarn quantity exceeds available stock. Yarn total: ${yarn.total_weight} kg, Already used: ${usedQty} kg, Available: ${(yarn.total_weight - usedQty).toFixed(2)} kg.`
+      });
+    }
 
     const record = await prisma.knitting.create({
       data: {
@@ -85,7 +97,6 @@ router.post('/', async (req, res, next) => {
         grey_fabric_weight: Number(grey_fabric_weight),
         other_yarn_type,
         other_yarn_percentage: other_yarn_percentage ? Number(other_yarn_percentage) : null,
-        gsm: Number(gsm),
         no_of_rolls: Number(no_of_rolls),
         date: new Date(date),
       },
@@ -106,8 +117,25 @@ router.put('/:id', async (req, res, next) => {
       loop_length, dia, count, gauge, date_given,
       fabric_description_id, grey_fabric_weight,
       other_yarn_type, other_yarn_percentage,
-      gsm, no_of_rolls, date,
+      no_of_rolls, date,
     } = req.body;
+
+    // Verify HF Code exists and validate weight on update
+    const yarn = await prisma.yarn.findFirst({ where: { hf_code } });
+    if (!yarn) return res.status(400).json({ message: `HF Code "${hf_code}" not found.` });
+
+    // Validate yarn_quantity does not exceed available yarn weight (exclude current record)
+    const usedAgg = await prisma.knitting.aggregate({
+      _sum: { yarn_quantity: true },
+      where: { hf_code, id: { not: Number(req.params.id) } },
+    });
+    const usedQty = usedAgg._sum.yarn_quantity || 0;
+    const newQty = Number(yarn_quantity);
+    if (usedQty + newQty > yarn.total_weight) {
+      return res.status(400).json({
+        message: `Yarn quantity exceeds available stock. Yarn total: ${yarn.total_weight} kg, Already used by other lots: ${usedQty} kg, Available: ${(yarn.total_weight - usedQty).toFixed(2)} kg.`
+      });
+    }
 
     const record = await prisma.knitting.update({
       where: { id: Number(req.params.id) },
@@ -124,7 +152,6 @@ router.put('/:id', async (req, res, next) => {
         grey_fabric_weight: Number(grey_fabric_weight),
         other_yarn_type,
         other_yarn_percentage: other_yarn_percentage ? Number(other_yarn_percentage) : null,
-        gsm: Number(gsm),
         no_of_rolls: Number(no_of_rolls),
         date: new Date(date),
       },

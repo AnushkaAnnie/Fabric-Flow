@@ -4,7 +4,7 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
 });
 
-// Request interceptor to add JWT and handle offline queue (simplified for now)
+// Request interceptor — attach JWT
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -16,15 +16,24 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle 401s globally
+// Response interceptor — handle errors globally
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    if (!error.response) {
+      // Network error — backend not reachable
+      alert('❌ Cannot connect to server. Please make sure the backend is running on port 3001.');
+      return Promise.reject(error);
+    }
+
+    if (error.response.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      alert('Your session has expired. Please log in again.');
       window.location.href = '/login';
+      return Promise.reject(error);
     }
+
     return Promise.reject(error);
   }
 );

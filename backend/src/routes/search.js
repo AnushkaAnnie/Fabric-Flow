@@ -20,7 +20,7 @@ router.get('/', async (req, res, next) => {
       hf_code_query = dyeCheck.hf_code;
     }
 
-    let yarn = await prisma.yarn.findUnique({
+    let yarn = await prisma.yarn.findFirst({
       where: { hf_code: hf_code_query },
       include: { millName: true }
     });

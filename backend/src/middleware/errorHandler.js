@@ -13,6 +13,12 @@ const errorHandler = (err, req, res, next) => {
     return res.status(404).json({ message: 'Record not found.' });
   }
 
+  if (err.code === 'P2003') {
+    return res.status(400).json({ 
+      message: 'Cannot delete: This record is linked to other processes.' 
+    });
+  }
+
   const status = err.status || err.statusCode || 500;
   res.status(status).json({
     message: err.message || 'Internal server error.',

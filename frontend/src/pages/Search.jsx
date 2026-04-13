@@ -104,7 +104,7 @@ const Search = () => {
                         <Grid container spacing={2}>
                           <Grid item xs={3}><Typography color="text.secondary">Compacter</Typography><Typography fontWeight={600}>{comp.compacterName?.name}</Typography></Grid>
                           <Grid item xs={3}><Typography color="text.secondary">Input / Output</Typography><Typography fontWeight={600}>{comp.initial_weight} &rarr; {comp.final_weight} kg</Typography></Grid>
-                          <Grid item xs={3}><Typography color="text.secondary">Final Dia/GSM</Typography><Typography fontWeight={600}>{comp.final_dia} / {comp.final_gsm}</Typography></Grid>
+                          <Grid item xs={3}><Typography color="text.secondary">Final Dia</Typography><Typography fontWeight={600}>{comp.final_dia}</Typography></Grid>
                           <Grid item xs={3}><Typography color="text.secondary">Process Loss</Typography><Typography fontWeight={600} color="error.main">{Number(comp.process_loss).toFixed(2)}%</Typography></Grid>
                         </Grid>
                       </Box>

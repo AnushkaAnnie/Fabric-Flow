@@ -58,8 +58,8 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const {
-      hf_code, lot_no, initial_weight, compacter_name_id,
-      final_dia, colour_id, final_weight, final_gsm, date,
+      hf_code, count, lot_no, initial_weight, compacter_name_id,
+      final_dia, colour_id, final_weight, date,
     } = req.body;
 
     // Verify lot_no exists in Dyeing
@@ -80,13 +80,13 @@ router.post('/', async (req, res, next) => {
     const record = await prisma.compacting.create({
       data: {
         hf_code,
+        count,
         lot_no,
         initial_weight: Number(initial_weight),
         compacter_name_id: Number(compacter_name_id),
         final_dia: Number(final_dia),
         colour_id: Number(colour_id),
         final_weight: fw,
-        final_gsm: Number(final_gsm),
         process_loss,
         date: new Date(date),
       },
@@ -103,8 +103,8 @@ router.post('/', async (req, res, next) => {
 router.put('/:id', async (req, res, next) => {
   try {
     const {
-      hf_code, initial_weight, compacter_name_id, final_dia,
-      colour_id, final_weight, final_gsm, date,
+      hf_code, count, initial_weight, compacter_name_id, final_dia,
+      colour_id, final_weight, date,
     } = req.body;
 
     // Recalculate process_loss
@@ -123,12 +123,12 @@ router.put('/:id', async (req, res, next) => {
       where: { id: Number(req.params.id) },
       data: {
         hf_code,
+        count,
         initial_weight: Number(initial_weight),
         compacter_name_id: Number(compacter_name_id),
         final_dia: Number(final_dia),
         colour_id: Number(colour_id),
         final_weight: fw,
-        final_gsm: Number(final_gsm),
         process_loss,
         date: new Date(date),
       },

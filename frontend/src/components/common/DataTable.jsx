@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { 
   Box, Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, TablePagination, Paper,
-  IconButton, TextField, InputAdornment, Typography
+  IconButton, TextField, InputAdornment, Typography,
+  Dialog, DialogTitle, DialogContent, DialogActions, Button
 } from '@mui/material';
-import { Edit2, Trash2, Search } from 'lucide-react';
+import { Edit2, Trash2, Search, AlertTriangle, Printer } from 'lucide-react';
 
 const DataTable = ({ 
   columns, 
@@ -17,9 +18,25 @@ const DataTable = ({
   onSearch,
   onEdit,
   onDelete,
+  onPrint,
   isLoading
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+
+  const triggerDelete = (row) => {
+    setItemToDelete(row);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (itemToDelete && onDelete) {
+      onDelete(itemToDelete);
+    }
+    setDeleteConfirmOpen(false);
+    setItemToDelete(null);
+  };
 
   const handleSearchKeyPress = (e) => {
     if (e.key === 'Enter' && onSearch) {
@@ -69,8 +86,8 @@ const DataTable = ({
                   {col.headerName}
                 </TableCell>
               ))}
-              {(onEdit || onDelete) && (
-                <TableCell sx={{ bgcolor: '#0f172a', borderBottom: '2px solid #1e293b', width: 100 }} align="right">
+              {(onEdit || onDelete || onPrint) && (
+                <TableCell sx={{ bgcolor: '#0f172a', borderBottom: '2px solid #1e293b', width: 120 }} align="right">
                   Actions
                 </TableCell>
               )}
@@ -97,15 +114,20 @@ const DataTable = ({
                       {col.renderCell ? col.renderCell(row) : row[col.field]}
                     </TableCell>
                   ))}
-                  {(onEdit || onDelete) && (
+                  {(onEdit || onDelete || onPrint) && (
                     <TableCell align="right">
+                      {onPrint && (
+                        <IconButton size="small" onClick={() => onPrint(row)} sx={{ color: 'secondary.main', mr: 1 }}>
+                          <Printer size={16} />
+                        </IconButton>
+                      )}
                       {onEdit && (
                         <IconButton size="small" onClick={() => onEdit(row)} sx={{ color: 'primary.main', mr: 1 }}>
                           <Edit2 size={16} />
                         </IconButton>
                       )}
                       {onDelete && (
-                        <IconButton size="small" onClick={() => onDelete(row)} sx={{ color: 'danger.main' }}>
+                        <IconButton size="small" onClick={() => triggerDelete(row)} sx={{ color: 'danger.main' }}>
                           <Trash2 size={16} />
                         </IconButton>
                       )}
@@ -130,6 +152,31 @@ const DataTable = ({
           sx={{ borderTop: '1px solid #1e293b', color: 'text.secondary' }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog 
+        open={deleteConfirmOpen} 
+        onClose={() => setDeleteConfirmOpen(false)}
+        PaperProps={{ sx: { bgcolor: 'background.paper', borderRadius: 2 } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'danger.main' }}>
+          <AlertTriangle size={24} />
+          Confirm Deletion
+        </DialogTitle>
+        <DialogContent>
+          <Typography color="text.secondary">
+            Are you sure you want to delete this record? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button onClick={() => setDeleteConfirmOpen(false)} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={confirmDelete} variant="contained" color="error">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };

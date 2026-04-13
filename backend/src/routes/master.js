@@ -42,12 +42,23 @@ router.post('/:entity', async (req, res, next) => {
     const model = ENTITY_MAP[req.params.entity];
     if (!model) return res.status(404).json({ message: 'Unknown master entity.' });
 
-    const { name } = req.body;
+    const { name, address_line1, address_line2, address_line3, state, pin_code, gstn } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Name is required.' });
     }
 
-    const record = await prisma[model].create({ data: { name: name.trim() } });
+    const isActor = ['millName', 'knitterName', 'dyerName', 'compacterName'].includes(model);
+    const data = { name: name.trim() };
+    if (isActor) {
+      data.address_line1 = address_line1 ? address_line1.trim() : null;
+      data.address_line2 = address_line2 ? address_line2.trim() : null;
+      data.address_line3 = address_line3 ? address_line3.trim() : null;
+      data.state = state ? state.trim() : null;
+      data.pin_code = pin_code ? String(pin_code).trim() : null;
+      data.gstn = gstn ? gstn.trim() : null;
+    }
+
+    const record = await prisma[model].create({ data });
     res.status(201).json(record);
   } catch (err) {
     next(err);
@@ -60,14 +71,25 @@ router.put('/:entity/:id', async (req, res, next) => {
     const model = ENTITY_MAP[req.params.entity];
     if (!model) return res.status(404).json({ message: 'Unknown master entity.' });
 
-    const { name } = req.body;
+    const { name, address_line1, address_line2, address_line3, state, pin_code, gstn } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Name is required.' });
     }
 
+    const isActor = ['millName', 'knitterName', 'dyerName', 'compacterName'].includes(model);
+    const data = { name: name.trim() };
+    if (isActor) {
+      data.address_line1 = address_line1 ? address_line1.trim() : null;
+      data.address_line2 = address_line2 ? address_line2.trim() : null;
+      data.address_line3 = address_line3 ? address_line3.trim() : null;
+      data.state = state ? state.trim() : null;
+      data.pin_code = pin_code ? String(pin_code).trim() : null;
+      data.gstn = gstn ? gstn.trim() : null;
+    }
+
     const record = await prisma[model].update({
       where: { id: Number(req.params.id) },
-      data: { name: name.trim() },
+      data,
     });
     res.json(record);
   } catch (err) {

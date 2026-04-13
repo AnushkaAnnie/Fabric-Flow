@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Button, Grid, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
+import { Box, Typography, Button, Grid, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Chip, Alert } from '@mui/material';
 import { Plus } from 'lucide-react';
 import DataTable from '../components/common/DataTable';
 import SmartDropdown from '../components/common/SmartDropdown';
@@ -16,12 +16,15 @@ const Dyeing = () => {
   const [editingId, setEditingId] = useState(null);
   
   const [formData, setFormData] = useState({
-    hf_code: '', lot_no: '', initial_weight: '', dyer_name_id: '',
-    wash_type_id: '', colour_id: '', gg: '', initial_dia: '',
-    final_dia: '', initial_gsm: '', final_gsm: '',
-    final_quantity: '', no_of_rolls: '', final_weight: '', 
+    hf_code: '', count: '', lot_no: '', initial_weight: '', dyer_name_id: '',
+    wash_type_id: '', colour_id: '', gg: '', initial_dia: '', final_dia: '',
+    no_of_rolls: '', final_weight: '', 
     date: new Date().toISOString().split('T')[0]
   });
+
+  const liveProcessLoss = formData.initial_weight && formData.final_weight
+    ? ((Number(formData.initial_weight) - Number(formData.final_weight)) / Number(formData.initial_weight)) * 100
+    : null;
 
   const fetchData = async () => {
     setLoading(true);
@@ -38,6 +41,18 @@ const Dyeing = () => {
   useEffect(() => {
     fetchData();
   }, [page, limit, search]);
+
+  useEffect(() => {
+    if (formData.hf_code) {
+      api.get(`/yarn/hf/${formData.hf_code}`)
+        .then(res => {
+          if (res.data && res.data.count) {
+            setFormData(prev => ({ ...prev, count: res.data.count }));
+          }
+        })
+        .catch(err => console.error('Error fetching yarn details for auto-fill:', err));
+    }
+  }, [formData.hf_code]);
 
   const handleSave = async () => {
     try {
@@ -64,24 +79,46 @@ const Dyeing = () => {
   };
 
   const handleDelete = async (row) => {
-    if (window.confirm(`Delete Dyeing record for Lot No ${row.lot_no}?`)) {
-      try {
-        await api.delete(`/dyeing/${row.id}`);
-        fetchData();
-      } catch (err) {
-        console.error(err);
-      }
+    try {
+      await api.delete(`/dyeing/${row.id}`);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Error deleting structure.');
     }
   };
 
   const columns = [
     { field: 'hf_code', headerName: 'HF Code' },
+    { field: 'count', headerName: 'Count' },
     { field: 'lot_no', headerName: 'Lot No' },
     { field: 'dyerName', headerName: 'Dyer', renderCell: (r) => r.dyerName?.name },
     { field: 'colour', headerName: 'Colour', renderCell: (row) => row.colour?.name },
     { field: 'washType', headerName: 'Wash', renderCell: (row) => row.washType?.name },
     { field: 'initial_weight', headerName: 'Input Wt' },
     { field: 'final_weight', headerName: 'Output Wt' },
+    { field: 'initial_dia', headerName: 'Initial Dia' },
+    { field: 'final_dia', headerName: 'Final Dia' },
+    { field: 'gg', headerName: 'GG' },
+    { field: 'no_of_rolls', headerName: 'No of Rolls' },
+    { 
+      field: 'process_loss', 
+      headerName: 'Loss/Gain', 
+      renderCell: (row) => {
+        const val = Number(row.process_loss) || 0;
+        // val > 0 means weight lost (final < initial). User wants red.
+        const color = val > 0 ? 'error' : val < 0 ? 'success' : 'default';
+        return <Chip label={`${val > 0 ? '-' : '+'}${Math.abs(val).toFixed(2)}%`} color={color} size="small" />;
+      }
+    },
+    { 
+      field: 'status', 
+      headerName: 'Status', 
+      renderCell: (row) => {
+        const isComplete = Number(row.final_weight) > 0;
+        return <Chip label={isComplete ? "Completed" : "Pending"} color={isComplete ? "success" : "warning"} size="small" variant="outlined" />;
+      }
+    },
     { field: 'date', headerName: 'Date', renderCell: (row) => new Date(row.date).toLocaleDateString() },
   ];
 
@@ -95,10 +132,9 @@ const Dyeing = () => {
           onClick={() => {
             setEditingId(null);
             setFormData({
-              hf_code: '', lot_no: '', initial_weight: '', dyer_name_id: '',
-              wash_type_id: '', colour_id: '', gg: '', initial_dia: '',
-              final_dia: '', initial_gsm: '', final_gsm: '',
-              final_quantity: '', no_of_rolls: '', final_weight: '', 
+              hf_code: '', count: '', lot_no: '', initial_weight: '', dyer_name_id: '',
+              wash_type_id: '', colour_id: '', gg: '', initial_dia: '', final_dia: '',
+              no_of_rolls: '', final_weight: '', 
               date: new Date().toISOString().split('T')[0]
             });
             setModalOpen(true);
@@ -141,28 +177,22 @@ const Dyeing = () => {
             <Grid item xs={12} sm={6}>
               <SmartDropdown label="Colour" value={formData.colour_id} onChange={(e) => setFormData({...formData, colour_id: e.target.value})} entity="colours" required />
             </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField fullWidth label="Count" value={formData.count} onChange={(e) => setFormData({...formData, count: e.target.value})} />
+            </Grid>
 
             <Grid item xs={12} sm={4}>
               <TextField fullWidth type="number" label="Initial Weight" value={formData.initial_weight} onChange={(e) => setFormData({...formData, initial_weight: e.target.value})} />
             </Grid>
             <Grid item xs={12} sm={4}>
-              <TextField fullWidth type="number" label="Final Weight" value={formData.final_weight} onChange={(e) => setFormData({...formData, final_weight: e.target.value})} required />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth type="number" label="Final Quantity (kg)" value={formData.final_quantity} onChange={(e) => setFormData({...formData, final_quantity: e.target.value})} />
+              <TextField fullWidth type="number" label="Final Weight" value={formData.final_weight} onChange={(e) => setFormData({...formData, final_weight: e.target.value})} />
             </Grid>
 
-            <Grid item xs={12} sm={3}>
+            <Grid item xs={12} sm={6}>
               <TextField fullWidth type="number" label="Initial Dia" value={formData.initial_dia} onChange={(e) => setFormData({...formData, initial_dia: e.target.value})} />
             </Grid>
-            <Grid item xs={12} sm={3}>
+            <Grid item xs={12} sm={6}>
               <TextField fullWidth type="number" label="Final Dia" value={formData.final_dia} onChange={(e) => setFormData({...formData, final_dia: e.target.value})} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth type="number" label="Initial GSM" value={formData.initial_gsm} onChange={(e) => setFormData({...formData, initial_gsm: e.target.value})} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth type="number" label="Final GSM" value={formData.final_gsm} onChange={(e) => setFormData({...formData, final_gsm: e.target.value})} />
             </Grid>
 
             <Grid item xs={12} sm={4}>
@@ -174,6 +204,19 @@ const Dyeing = () => {
             <Grid item xs={12} sm={4}>
               <TextField fullWidth type="date" label="Date" InputLabelProps={{ shrink: true }} value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} />
             </Grid>
+
+            {liveProcessLoss !== null && (
+              <Grid item xs={12}>
+                <Alert 
+                  severity={liveProcessLoss > 0 ? 'error' : liveProcessLoss < 0 ? 'success' : 'info'}
+                  icon={false}
+                  sx={{ display: 'flex', alignItems: 'center', fontWeight: 600 }}
+                >
+                  Process Change: {liveProcessLoss > 0 ? '-' : '+'}{Math.abs(liveProcessLoss).toFixed(2)}%
+                  {liveProcessLoss > 0 ? '  — Weight lost.' : liveProcessLoss < 0 ? '  — Weight gained.' : '  — No change.'}
+                </Alert>
+              </Grid>
+            )}
           </Grid>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
