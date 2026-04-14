@@ -41,28 +41,41 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// GET /api/yarn/:id
-router.get('/:id', async (req, res, next) => {
+// GET /api/yarn/hf/:hf_code
+router.get('/hf/:hf_code', async (req, res, next) => {
   try {
-    const yarn = await prisma.yarn.findUnique({
-      where: { id: Number(req.params.id) },
-      include: { millName: true, knittings: true },
+    const yarn = await prisma.yarn.findFirst({
+      where: { hf_code: req.params.hf_code },
+      include: { millName: true },
     });
-    if (!yarn) return res.status(404).json({ message: 'Yarn not found.' });
+    if (!yarn) return res.status(404).json({ message: 'HF Code not found.' });
     res.json(yarn);
   } catch (err) {
     next(err);
   }
 });
 
-// GET /api/yarn/hf/:hf_code
-router.get('/hf/:hf_code', async (req, res, next) => {
+// GET /api/yarn/po/:po_no  (must be before /:id)
+router.get('/po/:po_no', async (req, res, next) => {
   try {
-    const yarn = await prisma.yarn.findFirst({
-      where: { hf_code: req.params.hf_code },
-      include: { millName: true, knittings: true },
+    const yarns = await prisma.yarn.findMany({
+      where: { purchase_order_no: req.params.po_no },
+      include: { millName: true },
     });
-    if (!yarn) return res.status(404).json({ message: 'HF Code not found.' });
+    res.json(yarns);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/yarn/:id
+router.get('/:id', async (req, res, next) => {
+  try {
+    const yarn = await prisma.yarn.findUnique({
+      where: { id: Number(req.params.id) },
+      include: { millName: true },
+    });
+    if (!yarn) return res.status(404).json({ message: 'Yarn not found.' });
     res.json(yarn);
   } catch (err) {
     next(err);

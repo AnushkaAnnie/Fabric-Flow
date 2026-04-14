@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button, Grid, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Chip } from '@mui/material';
 import { Plus } from 'lucide-react';
 import DataTable from '../components/common/DataTable';
@@ -23,6 +23,11 @@ const Yarn = () => {
   const [poConfig, setPoConfig] = useState({ agent: '', cgst: 2.5, sgst: 2.5, expectedDeliveryDate: '' });
   const [poFormData, setPoFormData] = useState({});
   const updPo = (field, val) => setPoFormData(p => ({ ...p, [field]: val }));
+  const updPoItem = (idx, field, val) => setPoFormData(p => {
+    const newItems = [...(p.items || [])];
+    newItems[idx] = { ...newItems[idx], [field]: val };
+    return { ...p, items: newItems };
+  });
 
   const [formData, setFormData] = useState({
     mill_name_id: '', description: '', hf_code: '', purchase_order_no: '',
@@ -93,27 +98,39 @@ const Yarn = () => {
 
   const handlePrint = async (row) => {
     try {
+      let yarnsToPrint = [row];
+      // Fetch matching PO yarns if it exists
+      if (row.purchase_order_no && row.purchase_order_no.trim() !== '') {
+        const poRes = await api.get(`/yarn/po/${encodeURIComponent(row.purchase_order_no.trim())}`);
+        if (poRes.data && poRes.data.length > 0) {
+          yarnsToPrint = poRes.data;
+        }
+      }
+
       const res = await api.get('/master/knitter-names');
-      const dk = res.data.find(k => k.name === row.delivery_to) || null;
-      setPoData({ yarn: row, deliveryKnitter: dk });
+      const firstYarn = yarnsToPrint[0];
+      const dk = res.data.find(k => k.name === firstYarn.delivery_to) || null;
+      setPoData({ yarns: yarnsToPrint, deliveryKnitter: dk });
       setPoConfig({ agent: '', cgst: 2.5, sgst: 2.5, expectedDeliveryDate: '' });
       setPoFormData({
-        description: row.description || '',
-        count: row.count || '',
-        quality: row.quality?.toUpperCase() || '',
-        no_of_bags: String(row.no_of_bags || ''),
-        bag_weight: String(row.bag_weight || 60),
-        total_weight: row.total_weight?.toFixed(2) || '',
-        rate_per_kg: row.rate_per_kg?.toFixed(2) || '',
-        hf_code: row.hf_code || '',
-        purchase_order_no: row.purchase_order_no || '',
-        issued_date: new Date(row.issued_date).toLocaleDateString('en-GB'),
-        mill_name: row.millName?.name || '',
-        mill_gstin: row.millName?.gstn || '',
-        mill_address: [row.millName?.address_line1, row.millName?.address_line2, row.millName?.state, row.millName?.pin_code].filter(Boolean).join(', '),
-        knitter_name: dk?.name || row.delivery_to || '',
+        purchase_order_no: firstYarn.purchase_order_no || '',
+        issued_date: new Date(firstYarn.issued_date).toLocaleDateString('en-GB'),
+        mill_name: firstYarn.millName?.name || '',
+        mill_gstin: firstYarn.millName?.gstn || '',
+        mill_address: [firstYarn.millName?.address_line1, firstYarn.millName?.address_line2, firstYarn.millName?.state, firstYarn.millName?.pin_code].filter(Boolean).join(', '),
+        knitter_name: dk?.name || firstYarn.delivery_to || '',
         knitter_gstin: dk?.gstn || '',
         knitter_address: dk ? [dk.address_line1, dk.address_line2, dk.state, dk.pin_code].filter(Boolean).join(', ') : '',
+        items: yarnsToPrint.map(y => ({
+          hf_code: y.hf_code || '',
+          description: y.description || '',
+          count: y.count || '',
+          quality: y.quality?.toUpperCase() || '',
+          no_of_bags: String(y.no_of_bags || ''),
+          bag_weight: String(y.bag_weight || 60),
+          total_weight: y.total_weight?.toFixed(2) || '',
+          rate_per_kg: y.rate_per_kg?.toFixed(2) || '',
+        }))
       });
       setPrePrintOpen(true);
     } catch (e) {
@@ -230,32 +247,39 @@ const Yarn = () => {
         <DialogContent sx={{ pt: 2 }}>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
             <Grid item xs={12}><Section>🧵 Yarn Details</Section></Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Description" value={poFormData.description || ''} onChange={(e) => updPo('description', e.target.value)} size="small" />
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <TextField fullWidth label="Count" value={poFormData.count || ''} onChange={(e) => updPo('count', e.target.value)} size="small" />
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <TextField fullWidth label="Quality" value={poFormData.quality || ''} onChange={(e) => updPo('quality', e.target.value)} size="small" />
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <TextField fullWidth type="number" label="No. of Bags" value={poFormData.no_of_bags || ''} onChange={(e) => updPo('no_of_bags', e.target.value)} size="small" />
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <TextField fullWidth type="number" label="Bag Weight (kg)" value={poFormData.bag_weight || ''} onChange={(e) => updPo('bag_weight', e.target.value)} size="small" />
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <TextField fullWidth type="number" label="Total Weight (kg)" value={poFormData.total_weight || ''} onChange={(e) => updPo('total_weight', e.target.value)} size="small" />
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <TextField fullWidth type="number" label="Rate per Kg (₹)" value={poFormData.rate_per_kg || ''} onChange={(e) => updPo('rate_per_kg', e.target.value)} size="small" />
-            </Grid>
+            {(poFormData.items || []).flatMap((item, idx) => [
+              ...(poFormData.items.length > 1 ? [
+                <Grid item xs={12} key={`label-${idx}`}>
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', px: 1 }}>
+                    ▸ Item {idx + 1} — HF Code: {item.hf_code}
+                  </Typography>
+                </Grid>
+              ] : []),
+              <Grid item xs={12} sm={6} key={`desc-${idx}`}>
+                <TextField fullWidth label="Description" value={item.description || ''} onChange={(e) => updPoItem(idx, 'description', e.target.value)} size="small" />
+              </Grid>,
+              <Grid item xs={6} sm={3} key={`count-${idx}`}>
+                <TextField fullWidth label="Count" value={item.count || ''} onChange={(e) => updPoItem(idx, 'count', e.target.value)} size="small" />
+              </Grid>,
+              <Grid item xs={6} sm={3} key={`quality-${idx}`}>
+                <TextField fullWidth label="Quality" value={item.quality || ''} onChange={(e) => updPoItem(idx, 'quality', e.target.value)} size="small" />
+              </Grid>,
+              <Grid item xs={6} sm={3} key={`bags-${idx}`}>
+                <TextField fullWidth type="number" label="No. of Bags" value={item.no_of_bags || ''} onChange={(e) => updPoItem(idx, 'no_of_bags', e.target.value)} size="small" />
+              </Grid>,
+              <Grid item xs={6} sm={3} key={`bw-${idx}`}>
+                <TextField fullWidth type="number" label="Bag Weight (kg)" value={item.bag_weight || ''} onChange={(e) => updPoItem(idx, 'bag_weight', e.target.value)} size="small" />
+              </Grid>,
+              <Grid item xs={6} sm={3} key={`tw-${idx}`}>
+                <TextField fullWidth type="number" label="Total Weight (kg)" value={item.total_weight || ''} onChange={(e) => updPoItem(idx, 'total_weight', e.target.value)} size="small" />
+              </Grid>,
+              <Grid item xs={6} sm={3} key={`rate-${idx}`}>
+                <TextField fullWidth type="number" label="Rate per Kg (₹)" value={item.rate_per_kg || ''} onChange={(e) => updPoItem(idx, 'rate_per_kg', e.target.value)} size="small" />
+              </Grid>,
+            ])}
 
             <Grid item xs={12}><Section>📋 PO Reference</Section></Grid>
-            <Grid item xs={6} sm={4}>
-              <TextField fullWidth label="HF Code" value={poFormData.hf_code || ''} onChange={(e) => updPo('hf_code', e.target.value)} size="small" />
-            </Grid>
+            <Grid item xs={6} sm={2}></Grid>
             <Grid item xs={6} sm={4}>
               <TextField fullWidth label="PO Number" value={poFormData.purchase_order_no || ''} onChange={(e) => updPo('purchase_order_no', e.target.value)} size="small" />
             </Grid>
@@ -318,9 +342,7 @@ const Yarn = () => {
           {(() => {
             const cgst = Number(poConfig.cgst || 0);
             const sgst = Number(poConfig.sgst || 0);
-            const ratePerKg = Number(poFormData.rate_per_kg || 0);
-            const totalWt = Number(poFormData.total_weight || 0);
-            const taxable = totalWt * ratePerKg;
+            const taxable = (poFormData.items || []).reduce((acc, item) => acc + (Number(item.total_weight || 0) * Number(item.rate_per_kg || 0)), 0);
             const cgstAmt = taxable * cgst / 100;
             const sgstAmt = taxable * sgst / 100;
             const grandTotal = taxable + cgstAmt + sgstAmt;
@@ -338,7 +360,6 @@ const Yarn = () => {
               <Box>
                 <ST c="📋 PO Info" />
                 <Row label="PO Number" value={poFormData.purchase_order_no} />
-                <Row label="HF Code" value={poFormData.hf_code} />
                 <Row label="Date" value={poFormData.issued_date} />
                 <Row label="Agent" value={poConfig.agent} />
                 <Row label="Exp. Delivery Date" value={poConfig.expectedDeliveryDate ? new Date(poConfig.expectedDeliveryDate).toLocaleDateString('en-GB') : ''} />
@@ -351,13 +372,16 @@ const Yarn = () => {
                 <Row label="GSTIN" value={poFormData.knitter_gstin} />
                 <Row label="Address" value={poFormData.knitter_address} />
                 <ST c="🧵 Yarn" />
-                <Row label="Description" value={poFormData.description} />
-                <Row label="Count" value={poFormData.count} />
-                <Row label="Quality" value={poFormData.quality} />
-                <Row label="No. of Bags" value={poFormData.no_of_bags} />
-                <Row label="Bag Weight" value={`${poFormData.bag_weight || '60'} kg`} />
-                <Row label="Total Weight" value={`${poFormData.total_weight} kg`} />
-                <Row label="Rate / Kg" value={`₹ ${poFormData.rate_per_kg}`} />
+                {poFormData.items?.map((item, idx) => (
+                  <Box key={idx} sx={{ mb: 1, pl: 1, borderLeft: '2px solid #eef0fb' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 'bold' }}>Item {idx+1} (HF: {item.hf_code})</Typography>
+                    <Row label="Description" value={item.description} />
+                    <Row label="Count / Quality" value={`${item.count} / ${item.quality}`} />
+                    <Row label="Bags / Weight" value={`${item.no_of_bags} bags @ ${item.bag_weight || '60'} kg`} />
+                    <Row label="Total Weight" value={`${item.total_weight} kg`} />
+                    <Row label="Rate / Kg" value={`₹ ${item.rate_per_kg}`} />
+                  </Box>
+                ))}
                 <ST c="💰 Amount" />
                 <Row label="Taxable Amount" value={`₹ ${fmt(taxable)}`} />
                 <Row label={`CGST (${cgst}%)`} value={`₹ ${fmt(cgstAmt)}`} />
@@ -417,8 +441,10 @@ const Yarn = () => {
             .po-party-block { flex: 1; padding: 8px 12px; border-right: 2px solid #1a2e6b; }
             .po-party-block:last-child { border-right: none; }
             .po-party-block .pt { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #999; margin-bottom: 4px; letter-spacing: 0.5px; }
-            .po-party-block .pn { font-size: 13px; font-weight: 900; color: #1a2e6b; margin-bottom: 2px; }
-            .po-party-block .pa { font-size: 10px; color: #444; line-height: 1.5; }
+            .po-party-block .pn { font-size: 12px; font-weight: 900; color: #1a2e6b; margin-bottom: 2px; }
+            .po-party-block .pa { font-size: 10px; color: #444; line-height: 1.6; white-space: pre-line; }
+            .po-party-block .pa-line { display: block; font-size: 10px; color: #444; line-height: 1.6; }
+            .po-party-block .psupply { font-size: 10px; font-weight: bold; color: #1a2e6b; margin-top: 5px; border-top: 1px dashed #bbb; padding-top: 4px; }
             .po-party-block .pg { font-size: 10px; font-weight: bold; margin-top: 4px; color: #1a2e6b; }
             .po-table { width: 100%; border-collapse: collapse; }
             .po-table th { background: #eef0fb; color: #1a2e6b; font-weight: bold; padding: 7px 5px; border: 1.5px solid #1a2e6b; text-align: center; font-size: 10px; line-height: 1.3; }
@@ -438,12 +464,33 @@ const Yarn = () => {
           {poData && (() => {
             const cgst = Number(poConfig.cgst || 0);
             const sgst = Number(poConfig.sgst || 0);
-            const ratePerKg = Number(poFormData.rate_per_kg || 0);
-            const totalWt = Number(poFormData.total_weight || 0);
-            const taxable = totalWt * ratePerKg;
-            const cgstAmt = taxable * cgst / 100;
-            const sgstAmt = taxable * sgst / 100;
-            const grandTotal = taxable + cgstAmt + sgstAmt;
+
+            // Calculations per item
+            let grandTotal = 0;
+            let totalTaxable = 0;
+            let totalBags = 0;
+            let grandTotalWt = 0;
+            let totalCgstAmt = 0;
+            let totalSgstAmt = 0;
+            
+            const rows = (poFormData.items || []).map((item, idx) => {
+              const rRate = Number(item.rate_per_kg || 0);
+              const rWt = Number(item.total_weight || 0);
+              const rTaxable = rWt * rRate;
+              const rCgstAmt = rTaxable * cgst / 100;
+              const rSgstAmt = rTaxable * sgst / 100;
+              const rTotal = rTaxable + rCgstAmt + rSgstAmt;
+              
+              totalTaxable += rTaxable;
+              totalCgstAmt += rCgstAmt;
+              totalSgstAmt += rSgstAmt;
+              grandTotal += rTotal;
+              totalBags += Number(item.no_of_bags || 0);
+              grandTotalWt += rWt;
+              
+              return { item, rRate, rWt, rTaxable, rCgstAmt, rSgstAmt, rTotal };
+            });
+
             const fmt = (n) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
             return (
@@ -463,15 +510,20 @@ const Yarn = () => {
                 </div>
                 <div className="po-parties">
                   <div className="po-party-block">
-                    <div className="pt">Supplier (Please supply to):</div>
+                    <div className="pt">Supplier Address:</div>
                     <div className="pn">{poFormData.mill_name || '—'}</div>
-                    <div className="pa">{poFormData.mill_address || '—'}</div>
+                    {(poFormData.mill_address || '').split(',').filter(Boolean).map((line, i) => (
+                      <span key={i} className="pa-line">{line.trim()}</span>
+                    ))}
                     <div className="pg">GSTIN : {poFormData.mill_gstin || '—'}</div>
+                    <div className="psupply">Please supply the following items</div>
                   </div>
                   <div className="po-party-block">
-                    <div className="pt">Delivery To:</div>
-                    <div className="pn">{poFormData.knitter_name || '—'}</div>
-                    <div className="pa">{poFormData.knitter_address || '—'}</div>
+                    <div className="pt">Delivery Address:</div>
+                    <div className="psupply" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0, marginBottom: '4px' }}>To : {poFormData.knitter_name || '—'}</div>
+                    {(poFormData.knitter_address || '').split(',').filter(Boolean).map((line, i) => (
+                      <span key={i} className="pa-line">{line.trim()}</span>
+                    ))}
                     <div className="pg">GSTIN : {poFormData.knitter_gstin || '—'}</div>
                   </div>
                 </div>
@@ -494,41 +546,43 @@ const Yarn = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>1</td>
-                      <td className="al">{poFormData.description}</td>
-                      <td>{poFormData.count}</td>
-                      <td>{poFormData.quality}</td>
-                      <td>{poFormData.no_of_bags}</td>
-                      <td>{Number(poFormData.bag_weight || 60).toFixed(2)}</td>
-                      <td>{totalWt.toFixed(2)}</td>
-                      <td>{ratePerKg.toFixed(2)}</td>
-                      <td><strong>{fmt(taxable)}</strong></td>
-                      <td>{cgst > 0 ? `${cgst}%` : '—'}</td>
-                      <td>{cgst > 0 ? fmt(cgstAmt) : '—'}</td>
-                      <td>{sgst > 0 ? `${sgst}%` : '—'}</td>
-                      <td>{sgst > 0 ? fmt(sgstAmt) : '—'}</td>
-                      <td><strong>{fmt(grandTotal)}</strong></td>
-                    </tr>
-                    {[1, 2, 3].map(i => (
-                      <tr key={i} className="filler">
+                    {rows.map((row, i) => (
+                      <tr key={i}>
+                        <td>{i + 1}</td>
+                        <td className="al">{row.item.description}</td>
+                        <td>{row.item.count}</td>
+                        <td>{row.item.quality}</td>
+                        <td>{row.item.no_of_bags}</td>
+                        <td>{Number(row.item.bag_weight || 60).toFixed(2)}</td>
+                        <td>{row.rWt.toFixed(2)}</td>
+                        <td>{row.rRate.toFixed(2)}</td>
+                        <td><strong>{fmt(row.rTaxable)}</strong></td>
+                        <td>{cgst > 0 ? `${cgst}%` : '—'}</td>
+                        <td>{cgst > 0 ? fmt(row.rCgstAmt) : '—'}</td>
+                        <td>{sgst > 0 ? `${sgst}%` : '—'}</td>
+                        <td>{sgst > 0 ? fmt(row.rSgstAmt) : '—'}</td>
+                        <td><strong>{fmt(row.rTotal)}</strong></td>
+                      </tr>
+                    ))}
+                    {[...Array(Math.max(0, 4 - rows.length))].map((_, i) => (
+                      <tr key={`filler-${i}`} className="filler">
                         {Array(14).fill(null).map((_, j) => <td key={j}></td>)}
                       </tr>
                     ))}
                     <tr className="total-row">
                       <td colSpan={8} style={{ textAlign: 'right', paddingRight: '14px' }}>GRAND TOTAL</td>
-                      <td>{fmt(taxable)}</td>
+                      <td>{fmt(totalTaxable)}</td>
                       <td></td>
-                      <td>{cgst > 0 ? fmt(cgstAmt) : '—'}</td>
+                      <td>{cgst > 0 ? fmt(totalCgstAmt) : '—'}</td>
                       <td></td>
-                      <td>{sgst > 0 ? fmt(sgstAmt) : '—'}</td>
+                      <td>{sgst > 0 ? fmt(totalSgstAmt) : '—'}</td>
                       <td>&#8377; {fmt(grandTotal)}</td>
                     </tr>
                     <tr style={{ background: '#f0f4ff' }}>
                       <td colSpan={14} style={{ textAlign: 'left', padding: '6px 12px', fontWeight: 'bold', fontSize: '11px', color: '#1a2e6b', borderTop: '2px solid #1a2e6b' }}>
-                        Total No. of Bags: <span style={{ fontWeight: '900', fontSize: '12px' }}>{poFormData.no_of_bags}</span>
+                        Total No. of Bags: <span style={{ fontWeight: '900', fontSize: '12px' }}>{totalBags}</span>
                         &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
-                        Total Weight: <span style={{ fontWeight: '900', fontSize: '12px' }}>{totalWt.toFixed(2)} kg</span>
+                        Total Weight: <span style={{ fontWeight: '900', fontSize: '12px' }}>{grandTotalWt.toFixed(2)} kg</span>
                       </td>
                     </tr>
                     <tr style={{ background: '#f0f4ff' }}>
