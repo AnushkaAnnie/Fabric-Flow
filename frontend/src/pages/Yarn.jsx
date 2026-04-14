@@ -503,7 +503,7 @@ const Yarn = () => {
                 <div className="po-title-bar">YARN PURCHASE ORDER</div>
                 <div className="po-meta">
                   <div className="po-meta-cell"><div className="lbl">P.O. Number</div><div className="val">{poFormData.purchase_order_no || '—'}</div></div>
-                  <div className="po-meta-cell"><div className="lbl">HF Code</div><div className="val">{poFormData.hf_code || '—'}</div></div>
+                  <div className="po-meta-cell"><div className="lbl">HF Code</div><div className="val">{poFormData.items?.map(it => it.hf_code).filter(Boolean).join(', ') || '—'}</div></div>
                   <div className="po-meta-cell"><div className="lbl">Agent</div><div className="val">{poConfig.agent || '—'}</div></div>
                   <div className="po-meta-cell"><div className="lbl">Date</div><div className="val">{poFormData.issued_date || '—'}</div></div>
                   <div className="po-meta-cell"><div className="lbl">Exp. Delivery Date</div><div className="val">{poConfig.expectedDeliveryDate ? new Date(poConfig.expectedDeliveryDate).toLocaleDateString('en-GB') : '—'}</div></div>
@@ -520,7 +520,7 @@ const Yarn = () => {
                   </div>
                   <div className="po-party-block">
                     <div className="pt">Delivery Address:</div>
-                    <div className="psupply" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0, marginBottom: '4px' }}>To : {poFormData.knitter_name || '—'}</div>
+                    <div className="pn">To : {poFormData.knitter_name || '—'}</div>
                     {(poFormData.knitter_address || '').split(',').filter(Boolean).map((line, i) => (
                       <span key={i} className="pa-line">{line.trim()}</span>
                     ))}
