@@ -205,21 +205,12 @@ const Yarn = () => {
               <TextField fullWidth label="Purchase Order No" value={formData.purchase_order_no} onChange={(e) => setFormData({ ...formData, purchase_order_no: e.target.value })} />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <Autocomplete
-                multiple
-                freeSolo
-                options={[]}
-                value={formData.invoice_no ? formData.invoice_no.split(',').map(s => s.trim()).filter(Boolean) : []}
-                onChange={(e, newValue) => setFormData({ ...formData, invoice_no: newValue.join(', ') })}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => {
-                    const { key, ...tagProps } = getTagProps({ index });
-                    return <Chip key={key} variant="outlined" label={option} size="small" color="primary" {...tagProps} />;
-                  })
-                }
-                renderInput={(params) => (
-                  <TextField {...params} variant="outlined" label="Invoice No(s)" placeholder="Type and press Enter" />
-                )}
+              <TextField 
+                fullWidth 
+                label="Invoice No(s)" 
+                value={formData.invoice_no} 
+                onChange={(e) => setFormData({ ...formData, invoice_no: e.target.value })} 
+                helperText="Use commas to separate multiple invoice numbers"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
