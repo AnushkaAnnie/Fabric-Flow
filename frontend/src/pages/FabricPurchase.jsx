@@ -46,10 +46,7 @@ const FabricPurchase = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const amount = Number(formData.total_weight || 0) * Number(formData.rate_per_unit || 0);
-  const cgst = amount * 0.025;
-  const sgst = amount * 0.025;
-  const grandTotal = amount + cgst + sgst;
+
 
   const handleSave = async () => {
     try {
@@ -251,14 +248,6 @@ const FabricPurchase = () => {
             <Grid item xs={12} sm={6}>
               <TextField fullWidth type="number" label="Rate Per Unit" value={formData.rate_per_unit}
                 onChange={(e) => setFormData({ ...formData, rate_per_unit: e.target.value })} required />
-            </Grid>
-            <Grid item xs={12}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, 1fr)' }, gap: 1.5, p: 2, border: '1px solid #1e293b', borderRadius: 2 }}>
-                <Typography color="text.secondary">Amount: <strong>Rs {formatMoney(amount)}</strong></Typography>
-                <Typography color="text.secondary">CGST: <strong>Rs {formatMoney(cgst)}</strong></Typography>
-                <Typography color="text.secondary">SGST: <strong>Rs {formatMoney(sgst)}</strong></Typography>
-                <Typography color="text.primary">Grand Total: <strong>Rs {formatMoney(grandTotal)}</strong></Typography>
-              </Box>
             </Grid>
           </Grid>
         </DialogContent>
