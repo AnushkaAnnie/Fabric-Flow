@@ -113,6 +113,8 @@ const FabricPurchase = () => {
       purchase_order_no: row.purchase_order_no || '',
       fabric_code: row.fabric_code || '',
       particulars: row.particulars || '',
+      total_weight: row.total_weight || '',
+      rate_per_unit: row.rate_per_unit || '',
       date: new Date(row.date).toLocaleDateString('en-GB'),
     });
     setPoConfig({ cgst: 2.5, sgst: 2.5 });
@@ -121,7 +123,9 @@ const FabricPurchase = () => {
 
   const buildConfiguredPoData = (base = poData) => {
     if (!base) return null;
-    const taxable = Number(base.amount || 0);
+    const weight = Number(poFormData.total_weight || base.total_weight || 0);
+    const rate = Number(poFormData.rate_per_unit || base.rate_per_unit || 0);
+    const taxable = weight * rate;
     const cgstAmount = taxable * Number(poConfig.cgst || 0) / 100;
     const sgstAmount = taxable * Number(poConfig.sgst || 0) / 100;
     const totalAmount = taxable + cgstAmount + sgstAmount;
@@ -130,6 +134,8 @@ const FabricPurchase = () => {
       purchase_order_no: poFormData.purchase_order_no || '',
       fabric_code: poFormData.fabric_code || '',
       particulars: poFormData.particulars || '',
+      total_weight: weight,
+      rate_per_unit: rate,
       taxable,
       cgstAmount,
       sgstAmount,
@@ -283,6 +289,14 @@ const FabricPurchase = () => {
               <TextField fullWidth label="Particulars" value={poFormData.particulars || ''}
                 onChange={(e) => setPoFormData(prev => ({ ...prev, particulars: e.target.value }))} />
             </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth type="number" label="Total Weight (kg)" value={poFormData.total_weight || ''}
+                onChange={(e) => setPoFormData(prev => ({ ...prev, total_weight: e.target.value }))} />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth type="number" label="Rate Per Unit" value={poFormData.rate_per_unit || ''}
+                onChange={(e) => setPoFormData(prev => ({ ...prev, rate_per_unit: e.target.value }))} />
+            </Grid>
             <Grid item xs={12}>
               <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1a2e6b', bgcolor: '#eef0fb', px: 1.5, py: 0.5, borderRadius: 1 }}>
                 PO Settings
@@ -298,10 +312,10 @@ const FabricPurchase = () => {
             </Grid>
             <Grid item xs={12}>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, 1fr)' }, gap: 1.5, p: 2, border: '1px solid #1e293b', borderRadius: 2 }}>
-                <Typography color="text.secondary">Taxable: <strong>Rs {formatMoney(poData?.amount)}</strong></Typography>
-                <Typography color="text.secondary">CGST: <strong>Rs {formatMoney(Number(poData?.amount || 0) * Number(poConfig.cgst || 0) / 100)}</strong></Typography>
-                <Typography color="text.secondary">SGST: <strong>Rs {formatMoney(Number(poData?.amount || 0) * Number(poConfig.sgst || 0) / 100)}</strong></Typography>
-                <Typography color="text.primary">Grand Total: <strong>Rs {formatMoney(Number(poData?.amount || 0) + (Number(poData?.amount || 0) * Number(poConfig.cgst || 0) / 100) + (Number(poData?.amount || 0) * Number(poConfig.sgst || 0) / 100))}</strong></Typography>
+                <Typography color="text.secondary">Taxable: <strong>Rs {formatMoney(Number(poFormData.total_weight || 0) * Number(poFormData.rate_per_unit || 0))}</strong></Typography>
+                <Typography color="text.secondary">CGST: <strong>Rs {formatMoney(Number(poFormData.total_weight || 0) * Number(poFormData.rate_per_unit || 0) * Number(poConfig.cgst || 0) / 100)}</strong></Typography>
+                <Typography color="text.secondary">SGST: <strong>Rs {formatMoney(Number(poFormData.total_weight || 0) * Number(poFormData.rate_per_unit || 0) * Number(poConfig.sgst || 0) / 100)}</strong></Typography>
+                <Typography color="text.primary">Grand Total: <strong>Rs {formatMoney((Number(poFormData.total_weight || 0) * Number(poFormData.rate_per_unit || 0)) * (1 + (Number(poConfig.cgst || 0) + Number(poConfig.sgst || 0)) / 100))}</strong></Typography>
               </Box>
             </Grid>
           </Grid>
