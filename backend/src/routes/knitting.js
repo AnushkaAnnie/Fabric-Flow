@@ -80,6 +80,28 @@ async function recalculateKnitterBalance(knitter_id) {
 // Helper: upsert dyeing records from knitting lots
 // ─────────────────────────────────────────────────────
 async function syncDyeingFromLots(knittingId, lots, knitting) {
+  const incomingLotNos = lots.map(l => l.lot_no);
+
+  // ── 1. Delete lots that were removed from the form ──────────────────────
+  const existingLots = await prisma.knittingLot.findMany({
+    where: { knitting_id: knittingId },
+    include: { entries: true },
+  });
+
+  for (const existingLot of existingLots) {
+    if (!incomingLotNos.includes(existingLot.lot_no)) {
+      // Delete linked dyeing records and entries
+      for (const entry of existingLot.entries) {
+        if (entry.dyeing_id) {
+          await prisma.dyeing.delete({ where: { id: entry.dyeing_id } }).catch(() => {});
+        }
+        await prisma.knittingLotEntry.delete({ where: { id: entry.id } });
+      }
+      await prisma.knittingLot.delete({ where: { id: existingLot.id } });
+    }
+  }
+
+  // ── 2. Upsert incoming lots ──────────────────────────────────────────────
   for (const lot of lots) {
     // Ensure lot exists
     let knittingLot = await prisma.knittingLot.findUnique({ where: { lot_no: lot.lot_no } });
@@ -312,9 +334,8 @@ router.put('/:id', async (req, res, next) => {
       });
     }
 
-    if (lots.length) {
-      await syncDyeingFromLots(id, lots, { hf_code: primaryHfCode, count, gauge, dia });
-    }
+    // Always sync so removed lots are deleted even when lots=[]
+    await syncDyeingFromLots(id, lots, { hf_code: primaryHfCode, count, gauge, dia });
 
     await recalculateKnitterBalance(Number(knitter_name_id));
     if (oldRecord && oldRecord.knitter_name_id !== Number(knitter_name_id)) {
