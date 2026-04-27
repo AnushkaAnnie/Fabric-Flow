@@ -202,6 +202,45 @@ async function syncDyeingFromLots(knittingId, lots, knitting) {
   }
 }
 
+// ─────────────────────────────────────────────────────
+// Helper: validate yarn stock in 2 queries (batched)
+// Throws if any HF code has insufficient remaining stock.
+// excludeKnittingId: skip usages from the record being edited (PUT)
+// ─────────────────────────────────────────────────────
+async function validateYarnStock(yarnUsages, excludeKnittingId = null) {
+  const yarnIds = [...new Set(yarnUsages.map(u => Number(u.yarn_id)))];
+
+  // 1. Fetch all yarn totals in one query
+  const yarns = await prisma.yarn.findMany({
+    where: { id: { in: yarnIds } },
+    select: { id: true, hf_code: true, total_weight: true },
+  });
+
+  // 2. Fetch all usage sums in one groupBy query
+  const usageGroups = await prisma.knittingYarnUsage.groupBy({
+    by: ['yarn_id'],
+    _sum: { quantity: true },
+    where: {
+      yarn_id: { in: yarnIds },
+      ...(excludeKnittingId ? { knitting_id: { not: excludeKnittingId } } : {}),
+    },
+  });
+
+  const usedMap = new Map(usageGroups.map(g => [g.yarn_id, g._sum.quantity || 0]));
+
+  const errors = [];
+  for (const usage of yarnUsages) {
+    const yarn = yarns.find(y => y.id === Number(usage.yarn_id));
+    if (!yarn) { errors.push(`Yarn ID ${usage.yarn_id} not found.`); continue; }
+    const alreadyUsed = usedMap.get(yarn.id) || 0;
+    const remaining = yarn.total_weight - alreadyUsed;
+    if (Number(usage.quantity) > remaining) {
+      errors.push(`Insufficient stock for ${yarn.hf_code}: requested ${usage.quantity} kg, available ${remaining.toFixed(2)} kg.`);
+    }
+  }
+  return errors;
+}
+
 // POST /api/knitting
 router.post('/', async (req, res, next) => {
   try {
@@ -223,6 +262,10 @@ router.post('/', async (req, res, next) => {
 
     // Primary hf_code = first entry's hf_code (for backward compat)
     const primaryHfCode = hf_code || yarnUsages[0]?.hf_code || '';
+
+    // Validate stock in 2 batched queries
+    const stockErrors = await validateYarnStock(yarnUsages);
+    if (stockErrors.length) return res.status(400).json({ message: stockErrors.join(' ') });
 
     const record = await prisma.knitting.create({
       data: {
@@ -246,17 +289,15 @@ router.post('/', async (req, res, next) => {
       include: INCLUDE,
     });
 
-    // Create yarn usage records
-    for (const usage of yarnUsages) {
-      await prisma.knittingYarnUsage.create({
-        data: {
-          knitting_id: record.id,
-          yarn_id: Number(usage.yarn_id),
-          hf_code: usage.hf_code,
-          quantity: Number(usage.quantity) || 0,
-        },
-      });
-    }
+    // Create all yarn usage records in one query
+    await prisma.knittingYarnUsage.createMany({
+      data: yarnUsages.map(usage => ({
+        knitting_id: record.id,
+        yarn_id: Number(usage.yarn_id),
+        hf_code: usage.hf_code,
+        quantity: Number(usage.quantity) || 0,
+      })),
+    });
 
     // Sync dyeing lots
     if (lots.length) {
@@ -295,10 +336,14 @@ router.put('/:id', async (req, res, next) => {
 
     const primaryHfCode = hf_code || yarnUsages[0]?.hf_code || '';
 
+    // Validate stock in 2 batched queries (exclude this record's own usages)
+    const stockErrors = await validateYarnStock(yarnUsages, id);
+    if (stockErrors.length) return res.status(400).json({ message: stockErrors.join(' ') });
+
     // Fetch old record to see if knitter_name_id changed
     const oldRecord = await prisma.knitting.findUnique({ where: { id } });
 
-    // Delete old yarn usages and recreate
+    // Delete old yarn usages and recreate in one batch
     await prisma.knittingYarnUsage.deleteMany({ where: { knitting_id: id } });
 
     await prisma.knitting.update({
@@ -323,16 +368,14 @@ router.put('/:id', async (req, res, next) => {
       },
     });
 
-    for (const usage of yarnUsages) {
-      await prisma.knittingYarnUsage.create({
-        data: {
-          knitting_id: id,
-          yarn_id: Number(usage.yarn_id),
-          hf_code: usage.hf_code,
-          quantity: Number(usage.quantity) || 0,
-        },
-      });
-    }
+    await prisma.knittingYarnUsage.createMany({
+      data: yarnUsages.map(usage => ({
+        knitting_id: id,
+        yarn_id: Number(usage.yarn_id),
+        hf_code: usage.hf_code,
+        quantity: Number(usage.quantity) || 0,
+      })),
+    });
 
     // Always sync so removed lots are deleted even when lots=[]
     await syncDyeingFromLots(id, lots, { hf_code: primaryHfCode, count, gauge, dia });
