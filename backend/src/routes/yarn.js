@@ -53,22 +53,30 @@ router.get('/po/:po_no', async (req, res, next) => {
 router.get('/list/hf-codes', async (req, res, next) => {
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const yarns = await tx.yarn.findMany({
-        select: { id: true, hf_code: true, description: true, total_weight: true },
-        orderBy: { hf_code: 'asc' },
-      });
-      return Promise.all(yarns.map(async (y) => {
-        const usedAgg = await tx.knittingYarnUsage.aggregate({
+      // Two queries total instead of N+1
+      const [yarns, usageGroups] = await Promise.all([
+        tx.yarn.findMany({
+          select: { id: true, hf_code: true, description: true, total_weight: true },
+          orderBy: { hf_code: 'asc' },
+        }),
+        tx.knittingYarnUsage.groupBy({
+          by: ['yarn_id'],
           _sum: { quantity: true },
-          where: { yarn_id: y.id },
-        });
-        const used = usedAgg._sum.quantity || 0;
+        }),
+      ]);
+
+      // Build a lookup map: yarn_id → total used
+      const usedMap = new Map(usageGroups.map(g => [g.yarn_id, g._sum.quantity || 0]));
+
+      return yarns.map(y => {
+        const used = usedMap.get(y.id) || 0;
         return { ...y, used, remaining: y.total_weight - used };
-      }));
+      });
     });
     res.json(result);
   } catch (err) { next(err); }
 });
+
 
 // GET /api/yarn/:id
 router.get('/:id', async (req, res, next) => {
