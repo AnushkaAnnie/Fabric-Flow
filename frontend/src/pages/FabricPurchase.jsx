@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, TextField, Typography, Chip } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, TextField, Typography, Chip, Autocomplete } from '@mui/material';
 import { Plus } from 'lucide-react';
 import DataTable from '../components/common/DataTable';
 import SmartDropdown from '../components/common/SmartDropdown';
@@ -8,6 +8,7 @@ import api from '../api/axios';
 const initialForm = {
   fabric_code: '',
   purchase_order_no: '',
+  invoice_no: '',
   supplier_name_id: '',
   particulars: '',
   total_weight: '',
@@ -66,6 +67,7 @@ const FabricPurchase = () => {
     setFormData({
       fabric_code: row.fabric_code || '',
       purchase_order_no: row.purchase_order_no || '',
+      invoice_no: row.invoice_no || '',
       supplier_name_id: row.supplier_name_id || '',
       particulars: row.particulars || '',
       total_weight: row.total_weight || '',
@@ -188,6 +190,7 @@ const FabricPurchase = () => {
   const columns = [
     { field: 'fabric_code', headerName: 'Fabric Code' },
     { field: 'purchase_order_no', headerName: 'PO No' },
+    { field: 'invoice_no', headerName: 'Invoice No' },
     { field: 'particulars', headerName: 'Particulars' },
     { field: 'total_weight', headerName: 'Weight (kg)' },
     { field: 'rate_per_unit', headerName: 'Rate', renderCell: (row) => formatMoney(row.rate_per_unit) },
@@ -227,6 +230,24 @@ const FabricPurchase = () => {
               <TextField fullWidth label="PO No" value={formData.purchase_order_no}
                 onChange={(e) => setFormData({ ...formData, purchase_order_no: e.target.value })}
                 helperText={editingId ? '' : 'Leave blank to auto-generate'} />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                multiple
+                freeSolo
+                options={[]}
+                value={formData.invoice_no ? formData.invoice_no.split(',').map(s => s.trim()).filter(Boolean) : []}
+                onChange={(e, newValue) => setFormData({ ...formData, invoice_no: newValue.join(', ') })}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return <Chip key={key} variant="outlined" label={option} size="small" color="primary" {...tagProps} />;
+                  })
+                }
+                renderInput={(params) => (
+                  <TextField {...params} variant="outlined" label="Invoice No(s)" placeholder="Type and press Enter" />
+                )}
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
               <SmartDropdown label="Supplier Name" value={formData.supplier_name_id}
@@ -418,6 +439,7 @@ const FabricPurchase = () => {
               <div className="po-meta">
                 <div className="po-meta-cell"><div className="lbl">P.O. Number</div><div className="val">{poData.purchase_order_no || '-'}</div></div>
                 <div className="po-meta-cell"><div className="lbl">Fabric Code</div><div className="val">{poData.fabric_code || '-'}</div></div>
+                <div className="po-meta-cell"><div className="lbl">Invoice No</div><div className="val">{poData.invoice_no || '-'}</div></div>
                 <div className="po-meta-cell"><div className="lbl">Date</div><div className="val">{new Date(poData.date).toLocaleDateString('en-GB')}</div></div>
               </div>
               <div className="po-parties">

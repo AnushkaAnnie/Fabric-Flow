@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, Grid, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Chip } from '@mui/material';
+import { Box, Typography, Button, Grid, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Chip, Autocomplete } from '@mui/material';
 import { Plus } from 'lucide-react';
 import DataTable from '../components/common/DataTable';
 import SmartDropdown from '../components/common/SmartDropdown';
@@ -205,7 +205,22 @@ const Yarn = () => {
               <TextField fullWidth label="Purchase Order No" value={formData.purchase_order_no} onChange={(e) => setFormData({ ...formData, purchase_order_no: e.target.value })} />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Invoice No." value={formData.invoice_no} onChange={(e) => setFormData({ ...formData, invoice_no: e.target.value })} />
+              <Autocomplete
+                multiple
+                freeSolo
+                options={[]}
+                value={formData.invoice_no ? formData.invoice_no.split(',').map(s => s.trim()).filter(Boolean) : []}
+                onChange={(e, newValue) => setFormData({ ...formData, invoice_no: newValue.join(', ') })}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return <Chip key={key} variant="outlined" label={option} size="small" color="primary" {...tagProps} />;
+                  })
+                }
+                renderInput={(params) => (
+                  <TextField {...params} variant="outlined" label="Invoice No(s)" placeholder="Type and press Enter" />
+                )}
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
               <SmartDropdown label="Delivery To (Knitter)" value={formData.delivery_to} onChange={(e) => setFormData({ ...formData, delivery_to: e.target.value })} entity="knitter-names" valueKey="name" labelKey="name" />

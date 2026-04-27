@@ -119,6 +119,7 @@ model InhouseKnittedFabric {
   id                Int      @id @default(autoincrement())
   fabric_code       String   @unique
   purchase_order_no String
+  invoice_no        String   @default("")
   supplier_name_id  Int?
   particulars       String
   total_weight      Float
