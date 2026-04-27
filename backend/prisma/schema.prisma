@@ -24,6 +24,7 @@ model MillName {
   state         String?
   pin_code      String?
   gstn          String?
+  email         String?
   createdAt     DateTime @default(now())
   yarns         Yarn[]
 }
@@ -37,6 +38,7 @@ model KnitterName {
   state         String?
   pin_code      String?
   gstn          String?
+  email         String?
   yarn_balance  Float      @default(0)
   createdAt     DateTime   @default(now())
   knittings     Knitting[]
@@ -51,6 +53,7 @@ model DyerName {
   state         String?
   pin_code      String?
   gstn          String?
+  email         String?
   createdAt     DateTime @default(now())
   dyeings       Dyeing[]
   knittingLots  KnittingLot[]
@@ -65,6 +68,7 @@ model CompacterName {
   state         String?
   pin_code      String?
   gstn          String?
+  email         String?
   createdAt     DateTime     @default(now())
   compactings   Compacting[]
 }

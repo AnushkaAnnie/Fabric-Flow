@@ -42,7 +42,7 @@ router.post('/:entity', async (req, res, next) => {
     const model = ENTITY_MAP[req.params.entity];
     if (!model) return res.status(404).json({ message: 'Unknown master entity.' });
 
-    const { name, address_line1, address_line2, address_line3, state, pin_code, gstn } = req.body;
+    const { name, address_line1, address_line2, address_line3, state, pin_code, gstn, email } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Name is required.' });
     }
@@ -56,6 +56,7 @@ router.post('/:entity', async (req, res, next) => {
       data.state = state ? state.trim() : null;
       data.pin_code = pin_code ? String(pin_code).trim() : null;
       data.gstn = gstn ? gstn.trim() : null;
+      data.email = email ? email.trim() : null;
     }
 
     const record = await prisma[model].create({ data });
@@ -71,7 +72,7 @@ router.put('/:entity/:id', async (req, res, next) => {
     const model = ENTITY_MAP[req.params.entity];
     if (!model) return res.status(404).json({ message: 'Unknown master entity.' });
 
-    const { name, address_line1, address_line2, address_line3, state, pin_code, gstn } = req.body;
+    const { name, address_line1, address_line2, address_line3, state, pin_code, gstn, email } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Name is required.' });
     }
@@ -85,6 +86,7 @@ router.put('/:entity/:id', async (req, res, next) => {
       data.state = state ? state.trim() : null;
       data.pin_code = pin_code ? String(pin_code).trim() : null;
       data.gstn = gstn ? gstn.trim() : null;
+      data.email = email ? email.trim() : null;
     }
 
     const record = await prisma[model].update({

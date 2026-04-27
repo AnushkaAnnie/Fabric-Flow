@@ -27,6 +27,7 @@ const MasterData = () => {
   const [stateRegion, setStateRegion] = useState('');
   const [pinCode, setPinCode] = useState('');
   const [gstn, setGstn] = useState('');
+  const [email, setEmail] = useState('');
 
   const currentEntity = ENTITIES[tabIndex];
   const isActor = ['mill-names', 'knitter-names', 'dyer-names', 'compacter-names'].includes(currentEntity.id);
@@ -57,6 +58,7 @@ const MasterData = () => {
         payload.state = stateRegion;
         payload.pin_code = pinCode;
         payload.gstn = gstn;
+        payload.email = email;
       }
       
       if (editingId) {
@@ -80,6 +82,7 @@ const MasterData = () => {
     setStateRegion(row.state || '');
     setPinCode(row.pin_code || '');
     setGstn(row.gstn || '');
+    setEmail(row.email || '');
     setModalOpen(true);
   };
 
@@ -124,6 +127,7 @@ const MasterData = () => {
             setStateRegion('');
             setPinCode('');
             setGstn('');
+            setEmail('');
             setModalOpen(true);
           }}
         >
@@ -140,6 +144,7 @@ const MasterData = () => {
             { field: 'state', headerName: 'State' },
             { field: 'pin_code', headerName: 'Pin Code' },
             { field: 'gstn', headerName: 'GSTN' },
+            { field: 'email', headerName: 'Email' },
             ...(currentEntity.id === 'knitter-names' ? [{ field: 'yarn_balance', headerName: 'Yarn Balance (kg)' }] : [])
           ] : []),
           { field: 'createdAt', headerName: 'Created Date', renderCell: (r) => new Date(r.createdAt).toLocaleDateString() }
@@ -208,6 +213,15 @@ const MasterData = () => {
                 onKeyDown={(e) => { if(e.key === 'Enter') handleSave() }}
                 error={gstn.trim().length > 0 && gstn.trim().length !== 15}
                 helperText={gstn.trim().length > 0 && gstn.trim().length !== 15 ? 'Invalid GSTIN' : ''}
+              />
+              <TextField
+                fullWidth
+                margin="dense"
+                label="Email Address"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => { if(e.key === 'Enter') handleSave() }}
               />
             </>
           )}

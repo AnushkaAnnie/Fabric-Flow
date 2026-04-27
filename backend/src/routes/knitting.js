@@ -364,20 +364,23 @@ router.get('/list/hf-codes', async (req, res, next) => {
 router.get('/yarn-remaining/:hf_code', async (req, res, next) => {
   try {
     const { hf_code } = req.params;
-    const yarn = await prisma.yarn.findFirst({ where: { hf_code } });
-    if (!yarn) return res.status(404).json({ message: 'Yarn not found.' });
-
-    const usedAgg = await prisma.knittingYarnUsage.aggregate({
-      _sum: { quantity: true },
-      where: { hf_code },
+    const result = await prisma.$transaction(async (tx) => {
+      const yarn = await tx.yarn.findFirst({ where: { hf_code } });
+      if (!yarn) return null;
+      const usedAgg = await tx.knittingYarnUsage.aggregate({
+        _sum: { quantity: true },
+        where: { hf_code },
+      });
+      const used = usedAgg._sum.quantity || 0;
+      return {
+        hf_code,
+        total_weight: yarn.total_weight,
+        used,
+        remaining: yarn.total_weight - used,
+      };
     });
-    const used = usedAgg._sum.quantity || 0;
-    res.json({
-      hf_code,
-      total_weight: yarn.total_weight,
-      used,
-      remaining: yarn.total_weight - used,
-    });
+    if (!result) return res.status(404).json({ message: 'Yarn not found.' });
+    res.json(result);
   } catch (err) {
     next(err);
   }

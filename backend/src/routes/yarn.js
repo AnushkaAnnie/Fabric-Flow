@@ -52,21 +52,20 @@ router.get('/po/:po_no', async (req, res, next) => {
 // GET /api/yarn/list/hf-codes — for dropdowns, includes remaining stock
 router.get('/list/hf-codes', async (req, res, next) => {
   try {
-    const yarns = await prisma.yarn.findMany({
-      select: { id: true, hf_code: true, description: true, total_weight: true },
-      orderBy: { hf_code: 'asc' },
-    });
-
-    // Compute remaining for each
-    const result = await Promise.all(yarns.map(async (y) => {
-      const usedAgg = await prisma.knittingYarnUsage.aggregate({
-        _sum: { quantity: true },
-        where: { yarn_id: y.id },
+    const result = await prisma.$transaction(async (tx) => {
+      const yarns = await tx.yarn.findMany({
+        select: { id: true, hf_code: true, description: true, total_weight: true },
+        orderBy: { hf_code: 'asc' },
       });
-      const used = usedAgg._sum.quantity || 0;
-      return { ...y, used, remaining: y.total_weight - used };
-    }));
-
+      return Promise.all(yarns.map(async (y) => {
+        const usedAgg = await tx.knittingYarnUsage.aggregate({
+          _sum: { quantity: true },
+          where: { yarn_id: y.id },
+        });
+        const used = usedAgg._sum.quantity || 0;
+        return { ...y, used, remaining: y.total_weight - used };
+      }));
+    });
     res.json(result);
   } catch (err) { next(err); }
 });
@@ -181,32 +180,32 @@ router.delete('/:id', async (req, res, next) => {
 // GET /api/yarn/stock/summary — per-HF-code stock summary with knitter
 router.get('/stock/summary', async (req, res, next) => {
   try {
-    const yarns = await prisma.yarn.findMany({
-      include: { millName: true, yarnUsages: { include: { knitting: { include: { knitterName: true } } } } },
-      orderBy: { hf_code: 'asc' },
+    const summary = await prisma.$transaction(async (tx) => {
+      const yarns = await tx.yarn.findMany({
+        include: { millName: true, yarnUsages: { include: { knitting: { include: { knitterName: true } } } } },
+        orderBy: { hf_code: 'asc' },
+      });
+      return yarns.map(y => {
+        const totalUsed = y.yarnUsages.reduce((s, u) => s + u.quantity, 0);
+        const byKnitter = {};
+        for (const u of y.yarnUsages) {
+          const kName = u.knitting?.knitterName?.name || 'Unknown';
+          byKnitter[kName] = (byKnitter[kName] || 0) + u.quantity;
+        }
+        return {
+          id: y.id,
+          hf_code: y.hf_code,
+          description: y.description,
+          delivery_to: y.delivery_to,
+          total_weight: y.total_weight,
+          invoice_no: y.invoice_no,
+          status: y.status,
+          used: totalUsed,
+          remaining: y.total_weight - totalUsed,
+          byKnitter,
+        };
+      });
     });
-
-    const summary = yarns.map(y => {
-      const totalUsed = y.yarnUsages.reduce((s, u) => s + u.quantity, 0);
-      const byKnitter = {};
-      for (const u of y.yarnUsages) {
-        const kName = u.knitting?.knitterName?.name || 'Unknown';
-        byKnitter[kName] = (byKnitter[kName] || 0) + u.quantity;
-      }
-      return {
-        id: y.id,
-        hf_code: y.hf_code,
-        description: y.description,
-        delivery_to: y.delivery_to,
-        total_weight: y.total_weight,
-        invoice_no: y.invoice_no,
-        status: y.status,
-        used: totalUsed,
-        remaining: y.total_weight - totalUsed,
-        byKnitter,
-      };
-    });
-
     res.json(summary);
   } catch (err) { next(err); }
 });
