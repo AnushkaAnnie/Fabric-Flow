@@ -139,7 +139,8 @@ const MasterData = () => {
             { field: 'address_line1', headerName: 'Address Line 1' },
             { field: 'state', headerName: 'State' },
             { field: 'pin_code', headerName: 'Pin Code' },
-            { field: 'gstn', headerName: 'GSTN' }
+            { field: 'gstn', headerName: 'GSTN' },
+            ...(currentEntity.id === 'knitter-names' ? [{ field: 'yarn_balance', headerName: 'Yarn Balance (kg)' }] : [])
           ] : []),
           { field: 'createdAt', headerName: 'Created Date', renderCell: (r) => new Date(r.createdAt).toLocaleDateString() }
         ]}
@@ -205,13 +206,15 @@ const MasterData = () => {
                 value={gstn}
                 onChange={(e) => setGstn(e.target.value)}
                 onKeyDown={(e) => { if(e.key === 'Enter') handleSave() }}
+                error={gstn.trim().length > 0 && gstn.trim().length !== 15}
+                helperText={gstn.trim().length > 0 && gstn.trim().length !== 15 ? 'Invalid GSTIN' : ''}
               />
             </>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setModalOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSave} disabled={!name.trim()}>Save</Button>
+          <Button variant="contained" onClick={handleSave} disabled={!name.trim() || (isActor && gstn.trim().length > 0 && gstn.trim().length !== 15)}>Save</Button>
         </DialogActions>
       </Dialog>
     </Box>

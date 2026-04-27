@@ -8,6 +8,13 @@ router.use(auth);
 const INCLUDE = {
   knitterName: true,
   fabricDescription: true,
+  yarnUsages: { include: { yarn: { include: { millName: true } } } },
+  lots: {
+    include: {
+      dyerName: true,
+      entries: { include: { colour: true } },
+    },
+  },
 };
 
 // GET /api/knitting
@@ -17,11 +24,7 @@ router.get('/', async (req, res, next) => {
     const skip = (Number(page) - 1) * Number(limit);
 
     const where = search
-      ? {
-          OR: [
-            { hf_code: { contains: search } },
-          ],
-        }
+      ? { OR: [{ hf_code: { contains: search } }] }
       : {};
 
     const [records, total] = await Promise.all([
@@ -46,7 +49,7 @@ router.get('/:id', async (req, res, next) => {
   try {
     const record = await prisma.knitting.findUnique({
       where: { id: Number(req.params.id) },
-      include: { ...INCLUDE, dyeings: true, compactings: true },
+      include: INCLUDE,
     });
     if (!record) return res.status(404).json({ message: 'Knitting record not found.' });
     res.json(record);
@@ -55,39 +58,156 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
+// ─────────────────────────────────────────────────────
+// Helper: Recalculate knitter yarn balance
+// ─────────────────────────────────────────────────────
+async function recalculateKnitterBalance(knitter_id) {
+  const knittings = await prisma.knitting.findMany({
+    where: { knitter_name_id: Number(knitter_id) }
+  });
+  let balance = 0;
+  for (const k of knittings) {
+    balance += Number(k.total_yarn_qty || 0);
+    balance -= Number(k.received_weight || 0);
+  }
+  await prisma.knitterName.update({
+    where: { id: Number(knitter_id) },
+    data: { yarn_balance: balance }
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Helper: upsert dyeing records from knitting lots
+// ─────────────────────────────────────────────────────
+async function syncDyeingFromLots(knittingId, lots, knitting) {
+  for (const lot of lots) {
+    // Ensure lot exists
+    let knittingLot = await prisma.knittingLot.findUnique({ where: { lot_no: lot.lot_no } });
+
+    if (!knittingLot) {
+      knittingLot = await prisma.knittingLot.create({
+        data: {
+          knitting_id: knittingId,
+          lot_no: lot.lot_no,
+          job_work_no: lot.job_work_no || '',
+          dyer_name_id: Number(lot.dyer_name_id),
+        },
+      });
+    } else {
+      await prisma.knittingLot.update({
+        where: { id: knittingLot.id },
+        data: { dyer_name_id: Number(lot.dyer_name_id), job_work_no: lot.job_work_no || '' },
+      });
+    }
+
+    // Remove old entries for this lot that are no longer present
+    const incomingColourIds = (lot.entries || []).map(e => Number(e.colour_id));
+    const existingEntries = await prisma.knittingLotEntry.findMany({
+      where: { knitting_lot_id: knittingLot.id },
+    });
+
+    for (const oldEntry of existingEntries) {
+      if (!incomingColourIds.includes(oldEntry.colour_id)) {
+        // Remove associated dyeing if any
+        if (oldEntry.dyeing_id) {
+          await prisma.dyeing.delete({ where: { id: oldEntry.dyeing_id } }).catch(() => {});
+        }
+        await prisma.knittingLotEntry.delete({ where: { id: oldEntry.id } });
+      }
+    }
+
+    // Upsert entries
+    for (const entry of (lot.entries || [])) {
+      const existingEntry = existingEntries.find(e => e.colour_id === Number(entry.colour_id));
+
+      // Default dyeing fields
+      const dyeingData = {
+        hf_code: knitting.hf_code,
+        source_type: 'KNITTING',
+        fabric_code: null,
+        count: knitting.count || '',
+        lot_no: lot.lot_no,
+        initial_weight: Number(entry.weight),
+        dyer_name_id: Number(lot.dyer_name_id),
+        wash_type_id: 1, // default; user updates in Dyeing page
+        colour_id: Number(entry.colour_id),
+        gg: knitting.gauge ? Number(knitting.gauge) || 0 : 0,
+        initial_dia: Number(knitting.dia) || 0,
+        final_dia: 0,
+        no_of_rolls: 0,
+        final_weight: 0,
+        process_loss: 0,
+        date: new Date(),
+      };
+
+      if (existingEntry) {
+        // Update weight and dyer on existing entry
+        await prisma.knittingLotEntry.update({
+          where: { id: existingEntry.id },
+          data: { weight: Number(entry.weight), colour_id: Number(entry.colour_id) },
+        });
+        // Update corresponding dyeing if exists
+        if (existingEntry.dyeing_id) {
+          await prisma.dyeing.update({
+            where: { id: existingEntry.dyeing_id },
+            data: {
+              initial_weight: Number(entry.weight),
+              dyer_name_id: Number(lot.dyer_name_id),
+              colour_id: Number(entry.colour_id),
+            },
+          }).catch(() => {});
+        }
+      } else {
+        // Create new entry + dyeing record
+        let dyeingRecord = null;
+        const existingDyeing = await prisma.dyeing.findUnique({ where: { lot_no: lot.lot_no } }).catch(() => null);
+        if (!existingDyeing) {
+          dyeingRecord = await prisma.dyeing.create({ data: dyeingData }).catch(() => null);
+        } else {
+          dyeingRecord = existingDyeing;
+        }
+
+        await prisma.knittingLotEntry.create({
+          data: {
+            knitting_lot_id: knittingLot.id,
+            colour_id: Number(entry.colour_id),
+            weight: Number(entry.weight),
+            dyeing_id: dyeingRecord?.id || null,
+          },
+        });
+      }
+    }
+  }
+}
+
 // POST /api/knitting
 router.post('/', async (req, res, next) => {
   try {
     const {
-      hf_code, knitter_name_id, yarn_quantity,
-      loop_length, dia, count, gauge, date_given,
-      fabric_description_id, grey_fabric_weight,
+      hf_code, dc_no, knitter_name_id, total_yarn_qty, loop_length, dia, count, gauge, date_given,
+      fabric_description_id, grey_fabric_weight, received_weight,
       other_yarn_type, other_yarn_percentage,
       no_of_rolls, date,
+      // New: array of { hf_code, yarn_id }
+      yarnUsages = [],
+      // New: array of { lot_no, dyer_name_id, entries: [{ colour_id, weight }] }
+      lots = [],
     } = req.body;
 
-    // Verify HF Code exists
-    const yarn = await prisma.yarn.findFirst({ where: { hf_code } });
-    if (!yarn) return res.status(400).json({ message: `HF Code "${hf_code}" not found.` });
-
-    // Validate yarn_quantity does not exceed available yarn weight
-    const usedAgg = await prisma.knitting.aggregate({
-      _sum: { yarn_quantity: true },
-      where: { hf_code },
-    });
-    const usedQty = usedAgg._sum.yarn_quantity || 0;
-    const newQty = Number(yarn_quantity);
-    if (usedQty + newQty > yarn.total_weight) {
-      return res.status(400).json({
-        message: `Yarn quantity exceeds available stock. Yarn total: ${yarn.total_weight} kg, Already used: ${usedQty} kg, Available: ${(yarn.total_weight - usedQty).toFixed(2)} kg.`
-      });
+    // yarnUsages must have at least one entry
+    if (!yarnUsages.length) {
+      return res.status(400).json({ message: 'At least one yarn HF code usage is required.' });
     }
+
+    // Primary hf_code = first entry's hf_code (for backward compat)
+    const primaryHfCode = hf_code || yarnUsages[0]?.hf_code || '';
 
     const record = await prisma.knitting.create({
       data: {
-        hf_code,
+        hf_code: primaryHfCode,
+        dc_no: dc_no || '',
         knitter_name_id: Number(knitter_name_id),
-        yarn_quantity: Number(yarn_quantity),
+        total_yarn_qty: Number(total_yarn_qty) || 0,
         loop_length: Number(loop_length),
         dia: Number(dia),
         count,
@@ -95,6 +215,7 @@ router.post('/', async (req, res, next) => {
         date_given: new Date(date_given),
         fabric_description_id: Number(fabric_description_id),
         grey_fabric_weight: Number(grey_fabric_weight),
+        received_weight: received_weight !== '' && received_weight != null ? Number(received_weight) : null,
         other_yarn_type,
         other_yarn_percentage: other_yarn_percentage ? Number(other_yarn_percentage) : null,
         no_of_rolls: Number(no_of_rolls),
@@ -103,8 +224,32 @@ router.post('/', async (req, res, next) => {
       include: INCLUDE,
     });
 
-    res.status(201).json(record);
+    // Create yarn usage records
+    for (const usage of yarnUsages) {
+      await prisma.knittingYarnUsage.create({
+        data: {
+          knitting_id: record.id,
+          yarn_id: Number(usage.yarn_id),
+          hf_code: usage.hf_code,
+          quantity: 0,
+        },
+      });
+    }
+
+    // Sync dyeing lots
+    if (lots.length) {
+      await syncDyeingFromLots(record.id, lots, { hf_code: primaryHfCode, count, gauge, dia });
+    }
+
+    await recalculateKnitterBalance(record.knitter_name_id);
+
+    // Return fresh record
+    const fresh = await prisma.knitting.findUnique({ where: { id: record.id }, include: INCLUDE });
+    res.status(201).json(fresh);
   } catch (err) {
+    if (err.code === 'P2002' && (err.meta?.target?.includes('dc_no') || err.message.includes('dc_no'))) {
+      return res.status(400).json({ message: 'DC No must be unique. This DC No is already in use.' });
+    }
     next(err);
   }
 });
@@ -112,37 +257,35 @@ router.post('/', async (req, res, next) => {
 // PUT /api/knitting/:id
 router.put('/:id', async (req, res, next) => {
   try {
+    const id = Number(req.params.id);
     const {
-      hf_code, knitter_name_id, yarn_quantity,
-      loop_length, dia, count, gauge, date_given,
-      fabric_description_id, grey_fabric_weight,
+      hf_code, dc_no, knitter_name_id, total_yarn_qty, loop_length, dia, count, gauge, date_given,
+      fabric_description_id, grey_fabric_weight, received_weight,
       other_yarn_type, other_yarn_percentage,
       no_of_rolls, date,
+      yarnUsages = [],
+      lots = [],
     } = req.body;
 
-    // Verify HF Code exists and validate weight on update
-    const yarn = await prisma.yarn.findFirst({ where: { hf_code } });
-    if (!yarn) return res.status(400).json({ message: `HF Code "${hf_code}" not found.` });
-
-    // Validate yarn_quantity does not exceed available yarn weight (exclude current record)
-    const usedAgg = await prisma.knitting.aggregate({
-      _sum: { yarn_quantity: true },
-      where: { hf_code, id: { not: Number(req.params.id) } },
-    });
-    const usedQty = usedAgg._sum.yarn_quantity || 0;
-    const newQty = Number(yarn_quantity);
-    if (usedQty + newQty > yarn.total_weight) {
-      return res.status(400).json({
-        message: `Yarn quantity exceeds available stock. Yarn total: ${yarn.total_weight} kg, Already used by other lots: ${usedQty} kg, Available: ${(yarn.total_weight - usedQty).toFixed(2)} kg.`
-      });
+    if (!yarnUsages.length) {
+      return res.status(400).json({ message: 'At least one yarn HF code usage is required.' });
     }
 
-    const record = await prisma.knitting.update({
-      where: { id: Number(req.params.id) },
+    const primaryHfCode = hf_code || yarnUsages[0]?.hf_code || '';
+
+    // Fetch old record to see if knitter_name_id changed
+    const oldRecord = await prisma.knitting.findUnique({ where: { id } });
+
+    // Delete old yarn usages and recreate
+    await prisma.knittingYarnUsage.deleteMany({ where: { knitting_id: id } });
+
+    await prisma.knitting.update({
+      where: { id },
       data: {
-        hf_code,
+        hf_code: primaryHfCode,
+        dc_no: dc_no || '',
         knitter_name_id: Number(knitter_name_id),
-        yarn_quantity: Number(yarn_quantity),
+        total_yarn_qty: Number(total_yarn_qty) || 0,
         loop_length: Number(loop_length),
         dia: Number(dia),
         count,
@@ -150,16 +293,40 @@ router.put('/:id', async (req, res, next) => {
         date_given: new Date(date_given),
         fabric_description_id: Number(fabric_description_id),
         grey_fabric_weight: Number(grey_fabric_weight),
+        received_weight: received_weight !== '' && received_weight != null ? Number(received_weight) : null,
         other_yarn_type,
         other_yarn_percentage: other_yarn_percentage ? Number(other_yarn_percentage) : null,
         no_of_rolls: Number(no_of_rolls),
         date: new Date(date),
       },
-      include: INCLUDE,
     });
 
-    res.json(record);
+    for (const usage of yarnUsages) {
+      await prisma.knittingYarnUsage.create({
+        data: {
+          knitting_id: id,
+          yarn_id: Number(usage.yarn_id),
+          hf_code: usage.hf_code,
+          quantity: 0,
+        },
+      });
+    }
+
+    if (lots.length) {
+      await syncDyeingFromLots(id, lots, { hf_code: primaryHfCode, count, gauge, dia });
+    }
+
+    await recalculateKnitterBalance(Number(knitter_name_id));
+    if (oldRecord && oldRecord.knitter_name_id !== Number(knitter_name_id)) {
+      await recalculateKnitterBalance(oldRecord.knitter_name_id);
+    }
+
+    const fresh = await prisma.knitting.findUnique({ where: { id }, include: INCLUDE });
+    res.json(fresh);
   } catch (err) {
+    if (err.code === 'P2002' && (err.meta?.target?.includes('dc_no') || err.message.includes('dc_no'))) {
+      return res.status(400).json({ message: 'DC No must be unique. This DC No is already in use.' });
+    }
     next(err);
   }
 });
@@ -167,14 +334,20 @@ router.put('/:id', async (req, res, next) => {
 // DELETE /api/knitting/:id
 router.delete('/:id', async (req, res, next) => {
   try {
+    const oldRecord = await prisma.knitting.findUnique({ where: { id: Number(req.params.id) } });
+    if (!oldRecord) return res.status(404).json({ message: 'Record not found' });
+    
+    // Cascade deletes yarnUsages and lots via schema onDelete: Cascade
     await prisma.knitting.delete({ where: { id: Number(req.params.id) } });
+    
+    await recalculateKnitterBalance(oldRecord.knitter_name_id);
     res.json({ message: 'Knitting record deleted.' });
   } catch (err) {
     next(err);
   }
 });
 
-// GET /api/knitting/list/hf-codes — for dropdowns
+// GET /api/knitting/list/hf-codes
 router.get('/list/hf-codes', async (req, res, next) => {
   try {
     const records = await prisma.knitting.findMany({
@@ -182,6 +355,29 @@ router.get('/list/hf-codes', async (req, res, next) => {
       orderBy: { hf_code: 'asc' },
     });
     res.json(records);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/knitting/yarn-remaining/:hf_code — remaining stock for a given HF code
+router.get('/yarn-remaining/:hf_code', async (req, res, next) => {
+  try {
+    const { hf_code } = req.params;
+    const yarn = await prisma.yarn.findFirst({ where: { hf_code } });
+    if (!yarn) return res.status(404).json({ message: 'Yarn not found.' });
+
+    const usedAgg = await prisma.knittingYarnUsage.aggregate({
+      _sum: { quantity: true },
+      where: { hf_code },
+    });
+    const used = usedAgg._sum.quantity || 0;
+    res.json({
+      hf_code,
+      total_weight: yarn.total_weight,
+      used,
+      remaining: yarn.total_weight - used,
+    });
   } catch (err) {
     next(err);
   }

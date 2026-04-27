@@ -292,7 +292,7 @@ const Yarn = () => {
               <TextField fullWidth label="Mill Name" value={poFormData.mill_name || ''} onChange={(e) => updPo('mill_name', e.target.value)} size="small" />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Mill GSTIN" value={poFormData.mill_gstin || ''} onChange={(e) => updPo('mill_gstin', e.target.value)} size="small" />
+              <TextField fullWidth label="Mill GSTIN" value={poFormData.mill_gstin || ''} onChange={(e) => updPo('mill_gstin', e.target.value)} size="small" error={(poFormData.mill_gstin || '').trim().length > 0 && (poFormData.mill_gstin || '').trim().length !== 15} helperText={(poFormData.mill_gstin || '').trim().length > 0 && (poFormData.mill_gstin || '').trim().length !== 15 ? 'Invalid GSTIN' : ''} />
             </Grid>
             <Grid item xs={12}>
               <TextField fullWidth label="Mill Address" value={poFormData.mill_address || ''} onChange={(e) => updPo('mill_address', e.target.value)} size="small" />
@@ -303,7 +303,7 @@ const Yarn = () => {
               <TextField fullWidth label="Knitter Name" value={poFormData.knitter_name || ''} onChange={(e) => updPo('knitter_name', e.target.value)} size="small" />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Knitter GSTIN" value={poFormData.knitter_gstin || ''} onChange={(e) => updPo('knitter_gstin', e.target.value)} size="small" />
+              <TextField fullWidth label="Knitter GSTIN" value={poFormData.knitter_gstin || ''} onChange={(e) => updPo('knitter_gstin', e.target.value)} size="small" error={(poFormData.knitter_gstin || '').trim().length > 0 && (poFormData.knitter_gstin || '').trim().length !== 15} helperText={(poFormData.knitter_gstin || '').trim().length > 0 && (poFormData.knitter_gstin || '').trim().length !== 15 ? 'Invalid GSTIN' : ''} />
             </Grid>
             <Grid item xs={12}>
               <TextField fullWidth label="Delivery Address" value={poFormData.knitter_address || ''} onChange={(e) => updPo('knitter_address', e.target.value)} size="small" />
@@ -327,7 +327,7 @@ const Yarn = () => {
         </DialogContent>
         <DialogActions sx={{ p: 2, gap: 1 }}>
           <Button onClick={() => setPrePrintOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={() => { setPrePrintOpen(false); setConfirmOpen(true); }}>
+          <Button variant="contained" disabled={((poFormData.mill_gstin || '').trim().length > 0 && (poFormData.mill_gstin || '').trim().length !== 15) || ((poFormData.knitter_gstin || '').trim().length > 0 && (poFormData.knitter_gstin || '').trim().length !== 15)} onClick={() => { setPrePrintOpen(false); setConfirmOpen(true); }}>
             Review &amp; Confirm →
           </Button>
         </DialogActions>

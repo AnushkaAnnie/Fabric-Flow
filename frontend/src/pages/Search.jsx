@@ -73,9 +73,11 @@ const Search = () => {
                 <Card key={knit.id} sx={{ mb: 2, borderLeft: '4px solid #fbbf24' }}>
                   <CardContent>
                     <Grid container spacing={2}>
-                      <Grid item xs={4}><Typography color="text.secondary">Knitter</Typography><Typography fontWeight={600}>{knit.knitterName?.name}</Typography></Grid>
-                      <Grid item xs={4}><Typography color="text.secondary">Fabric</Typography><Typography fontWeight={600}>{knit.fabricDescription?.name}</Typography></Grid>
-                      <Grid item xs={4}><Typography color="text.secondary">Grey Weight</Typography><Typography fontWeight={600}>{knit.grey_fabric_weight} kg</Typography></Grid>
+                      <Grid item xs={2}><Typography color="text.secondary">Knitter</Typography><Typography fontWeight={600}>{knit.knitterName?.name}</Typography></Grid>
+                      <Grid item xs={3}><Typography color="text.secondary">Job Work No</Typography><Typography fontWeight={600}>{knit.job_work_no || '-'}</Typography></Grid>
+                      <Grid item xs={3}><Typography color="text.secondary">Delivery To</Typography><Typography fontWeight={600}>{knit.delivery_to || '-'}</Typography></Grid>
+                      <Grid item xs={2}><Typography color="text.secondary">Fabric</Typography><Typography fontWeight={600}>{knit.fabricDescription?.name}</Typography></Grid>
+                      <Grid item xs={2}><Typography color="text.secondary">Grey Weight</Typography><Typography fontWeight={600}>{knit.grey_fabric_weight} kg</Typography></Grid>
                     </Grid>
                   </CardContent>
                 </Card>

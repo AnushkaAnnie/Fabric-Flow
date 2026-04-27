@@ -2,3 +2,10 @@ node_modules
 dist
 dev.db
 .env
+
+backend/.env
+*.db
+*.db-wal
+*.db-shm
+# Added by code-review-graph
+.code-review-graph/

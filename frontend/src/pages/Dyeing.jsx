@@ -14,11 +14,11 @@ const Dyeing = () => {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     hf_code: '', count: '', lot_no: '', initial_weight: '', dyer_name_id: '',
     wash_type_id: '', colour_id: '', gg: '', initial_dia: '', final_dia: '',
-    no_of_rolls: '', final_weight: '', 
+    no_of_rolls: '', final_weight: '',
     date: new Date().toISOString().split('T')[0]
   });
 
@@ -32,48 +32,33 @@ const Dyeing = () => {
       const res = await api.get(`/dyeing?page=${page}&limit=${limit}&search=${search}`);
       setData(res.data.data);
       setTotal(res.data.total);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [page, limit, search]);
+  useEffect(() => { fetchData(); }, [page, limit, search]);
 
   useEffect(() => {
     if (formData.hf_code) {
       api.get(`/yarn/hf/${formData.hf_code}`)
-        .then(res => {
-          if (res.data && res.data.count) {
-            setFormData(prev => ({ ...prev, count: res.data.count }));
-          }
-        })
-        .catch(err => console.error('Error fetching yarn details for auto-fill:', err));
+        .then(res => { if (res.data?.count) setFormData(prev => ({ ...prev, count: res.data.count })); })
+        .catch(() => {});
     }
   }, [formData.hf_code]);
 
   const handleSave = async () => {
     try {
-      if (editingId) {
-        await api.put(`/dyeing/${editingId}`, formData);
-      } else {
-        await api.post('/dyeing', formData);
-      }
+      if (editingId) { await api.put(`/dyeing/${editingId}`, formData); }
+      else { await api.post('/dyeing', formData); }
       setModalOpen(false);
       fetchData();
     } catch (err) {
-      console.error(err);
       alert(err.response?.data?.message || 'Error saving data');
     }
   };
 
   const handleEdit = (row) => {
-    setFormData({
-      ...row,
-      date: new Date(row.date).toISOString().split('T')[0]
-    });
+    setFormData({ ...row, date: new Date(row.date).toISOString().split('T')[0] });
     setEditingId(row.id);
     setModalOpen(true);
   };
@@ -82,10 +67,7 @@ const Dyeing = () => {
     try {
       await api.delete(`/dyeing/${row.id}`);
       fetchData();
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || 'Error deleting structure.');
-    }
+    } catch (err) { alert(err.response?.data?.message || 'Error deleting record.'); }
   };
 
   const columns = [
@@ -93,30 +75,33 @@ const Dyeing = () => {
     { field: 'count', headerName: 'Count' },
     { field: 'lot_no', headerName: 'Lot No' },
     { field: 'dyerName', headerName: 'Dyer', renderCell: (r) => r.dyerName?.name },
-    { field: 'colour', headerName: 'Colour', renderCell: (row) => row.colour?.name },
-    { field: 'washType', headerName: 'Wash', renderCell: (row) => row.washType?.name },
-    { field: 'initial_weight', headerName: 'Input Wt' },
-    { field: 'final_weight', headerName: 'Output Wt' },
+    { field: 'colour', headerName: 'Colour', renderCell: (r) => r.colour?.name },
+    { field: 'washType', headerName: 'Wash', renderCell: (r) => r.washType?.name },
+    { field: 'initial_weight', headerName: 'Input Wt (kg)' },
+    { field: 'final_weight', headerName: 'Output Wt (kg)' },
     { field: 'initial_dia', headerName: 'Initial Dia' },
     { field: 'final_dia', headerName: 'Final Dia' },
     { field: 'gg', headerName: 'GG' },
-    { field: 'no_of_rolls', headerName: 'No of Rolls' },
-    { 
-      field: 'process_loss', 
-      headerName: 'Loss/Gain', 
+    { field: 'no_of_rolls', headerName: 'Rolls' },
+    {
+      field: 'process_loss', headerName: 'Loss/Gain',
       renderCell: (row) => {
         const val = Number(row.process_loss) || 0;
-        // val > 0 means weight lost (final < initial). User wants red.
         const color = val > 0 ? 'error' : val < 0 ? 'success' : 'default';
         return <Chip label={`${val > 0 ? '-' : '+'}${Math.abs(val).toFixed(2)}%`} color={color} size="small" />;
       }
     },
-    { 
-      field: 'status', 
-      headerName: 'Status', 
+    {
+      field: 'knitting_lot_entry_id', headerName: 'Source',
+      renderCell: (row) => row.knitting_lot_entry_id
+        ? <Chip label="From Knitting" size="small" color="info" variant="outlined" />
+        : <Chip label="Manual" size="small" variant="outlined" />
+    },
+    {
+      field: 'status', headerName: 'Status',
       renderCell: (row) => {
         const isComplete = Number(row.final_weight) > 0;
-        return <Chip label={isComplete ? "Completed" : "Pending"} color={isComplete ? "success" : "warning"} size="small" variant="outlined" />;
+        return <Chip label={isComplete ? 'Completed' : 'Pending'} color={isComplete ? 'success' : 'warning'} size="small" variant="outlined" />;
       }
     },
     { field: 'date', headerName: 'Date', renderCell: (row) => new Date(row.date).toLocaleDateString() },
@@ -126,94 +111,86 @@ const Dyeing = () => {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" color="text.primary">Dyeing Tracker</Typography>
-        <Button 
-          variant="contained" 
-          startIcon={<Plus size={18} />}
+        <Button variant="contained" startIcon={<Plus size={18} />}
           onClick={() => {
             setEditingId(null);
-            setFormData({
-              hf_code: '', count: '', lot_no: '', initial_weight: '', dyer_name_id: '',
-              wash_type_id: '', colour_id: '', gg: '', initial_dia: '', final_dia: '',
-              no_of_rolls: '', final_weight: '', 
-              date: new Date().toISOString().split('T')[0]
-            });
+            setFormData({ hf_code: '', count: '', lot_no: '', initial_weight: '', dyer_name_id: '', wash_type_id: '', colour_id: '', gg: '', initial_dia: '', final_dia: '', no_of_rolls: '', final_weight: '', date: new Date().toISOString().split('T')[0] });
             setModalOpen(true);
-          }}
-        >
+          }}>
           Add Record
         </Button>
       </Box>
 
-      <DataTable 
-        columns={columns}
-        data={data}
-        totalCount={total}
-        page={page}
-        limit={limit}
-        onPageChange={setPage}
-        onLimitChange={setLimit}
-        onSearch={setSearch}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        isLoading={loading}
-      />
+      <Alert severity="info" sx={{ mb: 2 }}>
+        Records marked <strong>"From Knitting"</strong> are auto-created when you add lots in the Knitting page. Edit them here to fill in final weight, wash type, and process details.
+      </Alert>
+
+      <DataTable columns={columns} data={data} totalCount={total} page={page} limit={limit}
+        onPageChange={setPage} onLimitChange={setLimit} onSearch={setSearch}
+        onEdit={handleEdit} onDelete={handleDelete} isLoading={loading} />
 
       <Dialog open={modalOpen} onClose={() => setModalOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>{editingId ? 'Edit Dyeing Record' : 'Add Dyeing Record'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} sm={6}>
-              <SmartDropdown label="HF Code" value={formData.hf_code} onChange={(e) => setFormData({...formData, hf_code: e.target.value})} entity="/api/yarn/list/hf-codes" valueKey="hf_code" labelKey="hf_code" required />
+              <SmartDropdown label="HF Code" value={formData.hf_code}
+                onChange={(e) => setFormData({ ...formData, hf_code: e.target.value })}
+                entity="/api/yarn/list/hf-codes" valueKey="hf_code" labelKey="hf_code" required />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Lot No (Assign New)" value={formData.lot_no} onChange={(e) => setFormData({...formData, lot_no: e.target.value})} required />
+              <TextField fullWidth label="Lot No" value={formData.lot_no}
+                onChange={(e) => setFormData({ ...formData, lot_no: e.target.value })} required />
             </Grid>
             <Grid item xs={12} sm={4}>
-              <SmartDropdown label="Dyer Name" value={formData.dyer_name_id} onChange={(e) => setFormData({...formData, dyer_name_id: e.target.value})} entity="dyer-names" required />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <SmartDropdown label="Wash Type" value={formData.wash_type_id} onChange={(e) => setFormData({...formData, wash_type_id: e.target.value})} entity="wash-types" required />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <SmartDropdown label="Colour" value={formData.colour_id} onChange={(e) => setFormData({...formData, colour_id: e.target.value})} entity="colours" required />
+              <SmartDropdown label="Dyer Name" value={formData.dyer_name_id}
+                onChange={(e) => setFormData({ ...formData, dyer_name_id: e.target.value })} entity="dyer-names" required />
             </Grid>
             <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="Count" value={formData.count} onChange={(e) => setFormData({...formData, count: e.target.value})} />
-            </Grid>
-
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth type="number" label="Initial Weight" value={formData.initial_weight} onChange={(e) => setFormData({...formData, initial_weight: e.target.value})} />
+              <SmartDropdown label="Wash Type" value={formData.wash_type_id}
+                onChange={(e) => setFormData({ ...formData, wash_type_id: e.target.value })} entity="wash-types" required />
             </Grid>
             <Grid item xs={12} sm={4}>
-              <TextField fullWidth type="number" label="Final Weight" value={formData.final_weight} onChange={(e) => setFormData({...formData, final_weight: e.target.value})} />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth type="number" label="Initial Dia" value={formData.initial_dia} onChange={(e) => setFormData({...formData, initial_dia: e.target.value})} />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth type="number" label="Final Dia" value={formData.final_dia} onChange={(e) => setFormData({...formData, final_dia: e.target.value})} />
-            </Grid>
-
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth type="number" label="GG" value={formData.gg} onChange={(e) => setFormData({...formData, gg: e.target.value})} />
+              <SmartDropdown label="Colour" value={formData.colour_id}
+                onChange={(e) => setFormData({ ...formData, colour_id: e.target.value })} entity="colours" required />
             </Grid>
             <Grid item xs={12} sm={4}>
-              <TextField fullWidth type="number" label="No of Rolls" value={formData.no_of_rolls} onChange={(e) => setFormData({...formData, no_of_rolls: e.target.value})} />
+              <TextField fullWidth label="Count" value={formData.count}
+                onChange={(e) => setFormData({ ...formData, count: e.target.value })} />
             </Grid>
             <Grid item xs={12} sm={4}>
-              <TextField fullWidth type="date" label="Date" InputLabelProps={{ shrink: true }} value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} />
+              <TextField fullWidth type="number" label="Initial Weight (kg)" value={formData.initial_weight}
+                onChange={(e) => setFormData({ ...formData, initial_weight: e.target.value })} />
             </Grid>
-
+            <Grid item xs={12} sm={4}>
+              <TextField fullWidth type="number" label="Final Weight (kg)" value={formData.final_weight}
+                onChange={(e) => setFormData({ ...formData, final_weight: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField fullWidth type="number" label="Initial Dia" value={formData.initial_dia}
+                onChange={(e) => setFormData({ ...formData, initial_dia: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField fullWidth type="number" label="Final Dia" value={formData.final_dia}
+                onChange={(e) => setFormData({ ...formData, final_dia: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField fullWidth type="number" label="GG" value={formData.gg}
+                onChange={(e) => setFormData({ ...formData, gg: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField fullWidth type="number" label="No of Rolls" value={formData.no_of_rolls}
+                onChange={(e) => setFormData({ ...formData, no_of_rolls: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField fullWidth type="date" label="Date" InputLabelProps={{ shrink: true }}
+                value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
+            </Grid>
             {liveProcessLoss !== null && (
               <Grid item xs={12}>
-                <Alert 
-                  severity={liveProcessLoss > 0 ? 'error' : liveProcessLoss < 0 ? 'success' : 'info'}
-                  icon={false}
-                  sx={{ display: 'flex', alignItems: 'center', fontWeight: 600 }}
-                >
+                <Alert severity={liveProcessLoss > 0 ? 'error' : liveProcessLoss < 0 ? 'success' : 'info'} icon={false} sx={{ fontWeight: 600 }}>
                   Process Change: {liveProcessLoss > 0 ? '-' : '+'}{Math.abs(liveProcessLoss).toFixed(2)}%
-                  {liveProcessLoss > 0 ? '  — Weight lost.' : liveProcessLoss < 0 ? '  — Weight gained.' : '  — No change.'}
+                  {liveProcessLoss > 0 ? ' — Weight lost.' : liveProcessLoss < 0 ? ' — Weight gained.' : ' — No change.'}
                 </Alert>
               </Grid>
             )}

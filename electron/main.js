@@ -54,15 +54,43 @@ function startBackend() {
   });
 }
 
-app.whenReady().then(() => {
+function waitForBackend(url, retries = 10) {
+  return new Promise((resolve, reject) => {
+    const attempt = () => {
+      fetch(url)
+        .then(resolve)
+        .catch(() => {
+          if (retries-- > 0) setTimeout(attempt, 500);
+          else reject(new Error('Backend not ready'));
+        });
+    };
+    attempt();
+  });
+}
+
+app.whenReady().then(async () => {
   // Start the local offline backend first
   startBackend();
   createWindow();
 
+  try {
+    await waitForBackend('http://localhost:3001/api/health'); // Wait for backend including /api/health (we will add /health too)
+  } catch(e) {
+    console.error('Backend start failure', e);
+  }
+
+  // Then load URL
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.loadURL('http://localhost:5173');
+    }
+  } catch(e) {}
+  
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
 
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();

@@ -2,12 +2,17 @@ version: '3.8'
 
 services:
   database:
-    image: postgres:15-alpine
+    image: postgres:15
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fabric_user -d fabricflow_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     environment:
       POSTGRES_USER: fabric_user
       POSTGRES_PASSWORD: fabric_password
-      POSTGRES_DB: yarn_fabric_db
+      POSTGRES_DB: fabricflow_db
     ports:
       - "5432:5432"
     volumes:
@@ -27,7 +32,8 @@ services:
       - JWT_SECRET=change_this_to_something_secure
       - CORS_ORIGIN=*
     depends_on:
-      - database
+      database:
+        condition: service_healthy
     command: sh -c "npx prisma migrate deploy && npm start"
 
 volumes:

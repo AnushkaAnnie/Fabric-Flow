@@ -11,6 +11,7 @@ const yarnRoutes = require('./routes/yarn');
 const knittingRoutes = require('./routes/knitting');
 const dyeingRoutes = require('./routes/dyeing');
 const compactingRoutes = require('./routes/compacting');
+const inhouseFabricRoutes = require('./routes/inhouseFabric');
 const searchRoutes = require('./routes/search');
 const analyticsRoutes = require('./routes/analytics');
 
@@ -34,6 +35,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // ─────────────────────────────────────────────────
 // API Routes
@@ -44,6 +46,7 @@ app.use('/api/yarn', yarnRoutes);
 app.use('/api/knitting', knittingRoutes);
 app.use('/api/dyeing', dyeingRoutes);
 app.use('/api/compacting', compactingRoutes);
+app.use('/api/inhouse-fabric', inhouseFabricRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/analytics', analyticsRoutes);
 

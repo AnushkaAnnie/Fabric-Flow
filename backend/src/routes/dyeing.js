@@ -59,13 +59,25 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const {
-      hf_code, count, lot_no, initial_weight, dyer_name_id, wash_type_id, colour_id,
+      hf_code, source_type, fabric_code, count, lot_no, initial_weight, dyer_name_id, wash_type_id, colour_id,
       gg, initial_dia, final_dia,
       no_of_rolls, final_weight, date,
     } = req.body;
 
+    const sourceType = source_type || 'KNITTING';
+    let resolvedInitialWeight = Number(initial_weight);
+    let resolvedHfCode = hf_code;
+
+    if (sourceType === 'INHOUSE_FABRIC') {
+      if (!fabric_code) return res.status(400).json({ message: 'Fabric code is required for inhouse fabric dyeing.' });
+      const fabric = await prisma.inhouseKnittedFabric.findUnique({ where: { fabric_code } });
+      if (!fabric) return res.status(404).json({ message: `Fabric Code "${fabric_code}" not found.` });
+      resolvedInitialWeight = fabric.total_weight;
+      resolvedHfCode = hf_code || fabric.fabric_code;
+    }
+
     // Calculate process loss based on ((initial_weight - final_weight) / initial_weight) * 100
-    const iw = Number(initial_weight);
+    const iw = resolvedInitialWeight;
     const fw = Number(final_weight);
     const process_loss = iw > 0 ? ((iw - fw) / iw) * 100 : 0;
 
@@ -75,10 +87,12 @@ router.post('/', async (req, res, next) => {
 
     const record = await prisma.dyeing.create({
       data: {
-        hf_code,
+        hf_code: resolvedHfCode,
+        source_type: sourceType,
+        fabric_code: sourceType === 'INHOUSE_FABRIC' ? fabric_code : null,
         count,
         lot_no,
-        initial_weight: Number(initial_weight),
+        initial_weight: resolvedInitialWeight,
         dyer_name_id: Number(dyer_name_id),
         wash_type_id: Number(wash_type_id),
         colour_id: Number(colour_id),
@@ -103,22 +117,36 @@ router.post('/', async (req, res, next) => {
 router.put('/:id', async (req, res, next) => {
   try {
     const {
-      hf_code, count, initial_weight, dyer_name_id, wash_type_id, colour_id,
+      hf_code, source_type, fabric_code, count, initial_weight, dyer_name_id, wash_type_id, colour_id,
       gg, initial_dia, final_dia,
       no_of_rolls, final_weight, date,
     } = req.body;
 
+    const sourceType = source_type || 'KNITTING';
+    let resolvedInitialWeight = Number(initial_weight);
+    let resolvedHfCode = hf_code;
+
+    if (sourceType === 'INHOUSE_FABRIC') {
+      if (!fabric_code) return res.status(400).json({ message: 'Fabric code is required for inhouse fabric dyeing.' });
+      const fabric = await prisma.inhouseKnittedFabric.findUnique({ where: { fabric_code } });
+      if (!fabric) return res.status(404).json({ message: `Fabric Code "${fabric_code}" not found.` });
+      resolvedInitialWeight = fabric.total_weight;
+      resolvedHfCode = hf_code || fabric.fabric_code;
+    }
+
     // Calculate process loss
-    const iw = Number(initial_weight);
+    const iw = resolvedInitialWeight;
     const fw = Number(final_weight);
     const process_loss = iw > 0 ? ((iw - fw) / iw) * 100 : 0;
 
     const record = await prisma.dyeing.update({
       where: { id: Number(req.params.id) },
       data: {
-        hf_code,
+        hf_code: resolvedHfCode,
+        source_type: sourceType,
+        fabric_code: sourceType === 'INHOUSE_FABRIC' ? fabric_code : null,
         count,
-        initial_weight: Number(initial_weight),
+        initial_weight: resolvedInitialWeight,
         dyer_name_id: Number(dyer_name_id),
         wash_type_id: Number(wash_type_id),
         colour_id: Number(colour_id),

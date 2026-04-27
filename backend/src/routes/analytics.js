@@ -13,6 +13,7 @@ router.get('/', async (req, res, next) => {
     const totalKnittingRecords = await prisma.knitting.count();
     const totalDyeingRecords = await prisma.dyeing.count();
     const totalCompactingRecords = await prisma.compacting.count();
+    const totalInhouseFabricRecords = await prisma.inhouseKnittedFabric.count();
 
     // Sums
     const yarnAgg = await prisma.yarn.aggregate({
@@ -20,11 +21,20 @@ router.get('/', async (req, res, next) => {
     });
     
     const knittingAgg = await prisma.knitting.aggregate({
-      _sum: { yarn_quantity: true, grey_fabric_weight: true }
+      _sum: { grey_fabric_weight: true }
     });
 
     const dyeingAgg = await prisma.dyeing.aggregate({
       _sum: { initial_weight: true, final_weight: true }
+    });
+
+    const inhouseFabricAgg = await prisma.inhouseKnittedFabric.aggregate({
+      _sum: { total_weight: true }
+    });
+
+    const inhouseDyeingAgg = await prisma.dyeing.aggregate({
+      _sum: { initial_weight: true },
+      where: { source_type: 'INHOUSE_FABRIC' }
     });
 
     const compactingAgg = await prisma.compacting.aggregate({
@@ -37,7 +47,8 @@ router.get('/', async (req, res, next) => {
         yarn: totalYarnRecords,
         knitting: totalKnittingRecords,
         dyeing: totalDyeingRecords,
-        compacting: totalCompactingRecords
+        compacting: totalCompactingRecords,
+        inhouseFabric: totalInhouseFabricRecords
       },
       sums: {
         totalYarnWeight: yarnAgg._sum.total_weight || 0,
@@ -45,6 +56,8 @@ router.get('/', async (req, res, next) => {
         totalGreyFabric: knittingAgg._sum.grey_fabric_weight || 0,
         totalDyedFabric: dyeingAgg._sum.final_weight || 0,
         totalCompactedFabric: compactingAgg._sum.final_weight || 0,
+        total_inhouse_fabric_weight: inhouseFabricAgg._sum.total_weight || 0,
+        dyed_from_fabric_weight: inhouseDyeingAgg._sum.initial_weight || 0,
       },
       averages: {
         avgProcessLoss: compactingAgg._avg.process_loss || 0

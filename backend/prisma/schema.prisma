@@ -3,28 +3,20 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite" // Change to "postgresql" manually for cloud
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
-
-// ─────────────────────────────────────────────────────
-// AUTH
-// ─────────────────────────────────────────────────────
 
 model User {
   id           Int      @id @default(autoincrement())
   username     String   @unique
   passwordHash String
-  role         String   @default("user") // "admin" | "user"
+  role         String   @default("user")
   createdAt    DateTime @default(now())
 }
 
-// ─────────────────────────────────────────────────────
-// MASTER DATA TABLES
-// ─────────────────────────────────────────────────────
-
 model MillName {
-  id        Int      @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   name          String   @unique
   address_line1 String?
   address_line2 String?
@@ -32,12 +24,12 @@ model MillName {
   state         String?
   pin_code      String?
   gstn          String?
-  createdAt DateTime @default(now())
-  yarns     Yarn[]
+  createdAt     DateTime @default(now())
+  yarns         Yarn[]
 }
 
 model KnitterName {
-  id        Int        @id @default(autoincrement())
+  id            Int        @id @default(autoincrement())
   name          String     @unique
   address_line1 String?
   address_line2 String?
@@ -45,12 +37,13 @@ model KnitterName {
   state         String?
   pin_code      String?
   gstn          String?
-  createdAt DateTime   @default(now())
-  knittings Knitting[]
+  yarn_balance  Float      @default(0)
+  createdAt     DateTime   @default(now())
+  knittings     Knitting[]
 }
 
 model DyerName {
-  id        Int      @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   name          String   @unique
   address_line1 String?
   address_line2 String?
@@ -58,12 +51,13 @@ model DyerName {
   state         String?
   pin_code      String?
   gstn          String?
-  createdAt DateTime @default(now())
-  dyeings   Dyeing[]
+  createdAt     DateTime @default(now())
+  dyeings       Dyeing[]
+  knittingLots  KnittingLot[]
 }
 
 model CompacterName {
-  id          Int          @id @default(autoincrement())
+  id            Int          @id @default(autoincrement())
   name          String       @unique
   address_line1 String?
   address_line2 String?
@@ -71,16 +65,17 @@ model CompacterName {
   state         String?
   pin_code      String?
   gstn          String?
-  createdAt   DateTime     @default(now())
-  compactings Compacting[]
+  createdAt     DateTime     @default(now())
+  compactings   Compacting[]
 }
 
 model Colour {
-  id          Int          @id @default(autoincrement())
-  name        String       @unique
-  createdAt   DateTime     @default(now())
-  dyeings     Dyeing[]
-  compactings Compacting[]
+  id                 Int                @id @default(autoincrement())
+  name               String             @unique
+  createdAt          DateTime           @default(now())
+  dyeings            Dyeing[]
+  compactings        Compacting[]
+  knittingLotEntries KnittingLotEntry[]
 }
 
 model WashType {
@@ -97,91 +92,145 @@ model FabricDescription {
   knittings Knitting[]
 }
 
-// ─────────────────────────────────────────────────────
-// CORE PRODUCTION TABLES
-// ─────────────────────────────────────────────────────
-
 model Yarn {
-  id                Int        @id @default(autoincrement())
+  id                Int                 @id @default(autoincrement())
   hf_code           String
-  purchase_order_no String     @default("")
-  invoice_no        String     @default("")
-  delivery_to       String     @default("")
-  status            String     @default("Pending")
-  millName          MillName   @relation(fields: [mill_name_id], references: [id])
-  mill_name_id Int
-  description  String
-  count        String
-  quality      String     // "rl" or "vl"
-  no_of_bags   Float
-  bag_weight   Float
-  total_weight Float      
-  rate_per_kg  Float
-  total_cost   Float      
-  issued_date  DateTime   @default(now())
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  purchase_order_no String              @default("")
+  invoice_no        String              @default("")
+  delivery_to       String              @default("")
+  status            String              @default("Pending")
+  millName          MillName            @relation(fields: [mill_name_id], references: [id])
+  mill_name_id      Int
+  description       String
+  count             String
+  quality           String
+  no_of_bags        Float
+  bag_weight        Float
+  total_weight      Float
+  rate_per_kg       Float
+  total_cost        Float
+  issued_date       DateTime            @default(now())
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  yarnUsages        KnittingYarnUsage[]
+}
+
+model InhouseKnittedFabric {
+  id                Int      @id @default(autoincrement())
+  fabric_code       String   @unique
+  purchase_order_no String
+  supplier_name_id  Int?
+  particulars       String
+  total_weight      Float
+  rate_per_unit     Float
+  amount            Float
+  date              DateTime
+  created_at        DateTime @default(now())
+}
+
+model KnittingYarnUsage {
+  id          Int      @id @default(autoincrement())
+  knitting    Knitting @relation(fields: [knitting_id], references: [id], onDelete: Cascade)
+  knitting_id Int
+  yarn        Yarn     @relation(fields: [yarn_id], references: [id])
+  yarn_id     Int
+  hf_code     String
+  quantity    Float      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model KnittingLot {
+  id           Int                @id @default(autoincrement())
+  knitting     Knitting           @relation(fields: [knitting_id], references: [id], onDelete: Cascade)
+  knitting_id  Int
+  lot_no       String             @unique
+  job_work_no  String             @default("")
+  dyerName     DyerName           @relation(fields: [dyer_name_id], references: [id])
+  dyer_name_id Int
+  entries      KnittingLotEntry[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+model KnittingLotEntry {
+  id              Int         @id @default(autoincrement())
+  knittingLot     KnittingLot @relation(fields: [knitting_lot_id], references: [id], onDelete: Cascade)
+  knitting_lot_id Int
+  colour          Colour      @relation(fields: [colour_id], references: [id])
+  colour_id       Int
+  weight          Float
+  dyeing_id       Int?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }
 
 model Knitting {
-  id                    Int               @id @default(autoincrement())
+  id                    Int                 @id @default(autoincrement())
   hf_code               String
-  knitterName           KnitterName       @relation(fields: [knitter_name_id], references: [id])
+  dc_no                 String              @unique
+  knitterName           KnitterName         @relation(fields: [knitter_name_id], references: [id])
   knitter_name_id       Int
-  yarn_quantity         Float
+  total_yarn_qty        Float               @default(0)
   loop_length           Float
   dia                   Float
   count                 String
   gauge                 String
   date_given            DateTime
-  fabricDescription     FabricDescription @relation(fields: [fabric_description_id], references: [id])
+  fabricDescription     FabricDescription   @relation(fields: [fabric_description_id], references: [id])
   fabric_description_id Int
   grey_fabric_weight    Float
+  received_weight       Float?
   other_yarn_type       String?
   other_yarn_percentage Float?
   no_of_rolls           Int
   date                  DateTime
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  yarnUsages            KnittingYarnUsage[]
+  lots                  KnittingLot[]
 }
 
 model Dyeing {
-  id             Int      @id @default(autoincrement())
-  hf_code        String
-  count          String   @default("")
-  lot_no         String   @unique
-  initial_weight Float
-  dyerName       DyerName @relation(fields: [dyer_name_id], references: [id])
-  dyer_name_id   Int
-  washType       WashType @relation(fields: [wash_type_id], references: [id])
-  wash_type_id   Int
-  colour         Colour   @relation(fields: [colour_id], references: [id])
-  colour_id      Int
-  gg             Float
-  initial_dia    Float
-  final_dia      Float
-  no_of_rolls    Int
-  final_weight   Float
-  process_loss   Float    // added
-  date           DateTime
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                    Int      @id @default(autoincrement())
+  hf_code               String
+  source_type           String   @default("KNITTING")
+  fabric_code           String?
+  count                 String   @default("")
+  lot_no                String   @unique
+  initial_weight        Float
+  dyerName              DyerName @relation(fields: [dyer_name_id], references: [id])
+  dyer_name_id          Int
+  washType              WashType @relation(fields: [wash_type_id], references: [id])
+  wash_type_id          Int
+  colour                Colour   @relation(fields: [colour_id], references: [id])
+  colour_id             Int
+  gg                    Float
+  initial_dia           Float
+  final_dia             Float
+  no_of_rolls           Int
+  final_weight          Float
+  process_loss          Float
+  date                  DateTime
+  knitting_lot_entry_id Int?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model Compacting {
-  id                Int      @id @default(autoincrement())
+  id                Int           @id @default(autoincrement())
   hf_code           String
-  count             String   @default("")
-  lot_no            String   @unique
+  count             String        @default("")
+  lot_no            String        @unique
   initial_weight    Float
   compacterName     CompacterName @relation(fields: [compacter_name_id], references: [id])
   compacter_name_id Int
   final_dia         Float
-  colour            Colour   @relation(fields: [colour_id], references: [id])
+  colour            Colour        @relation(fields: [colour_id], references: [id])
   colour_id         Int
   final_weight      Float
-  process_loss      Float    // auto
+  process_loss      Float
   date              DateTime
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 }
