@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Button, Grid, Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Chip, Divider, IconButton, Paper, Alert, Tooltip, Table,
-  TableHead, TableBody, TableRow, TableCell, Collapse
+  TableHead, TableBody, TableRow, TableCell, Collapse, Autocomplete
 } from '@mui/material';
 import { Plus, Trash2, ChevronDown, ChevronRight, PlusCircle } from 'lucide-react';
 import DataTable from '../components/common/DataTable';
@@ -359,49 +359,41 @@ const Knitting = () => {
             {/* ── Section: Yarn HF Code Usages ── */}
             <Grid item xs={12}>
               <Divider sx={{ my: 1 }} />
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="subtitle1" fontWeight={600} color="primary">
-                  Yarn Usage (per HF Code)
-                </Typography>
-                <Button size="small" startIcon={<PlusCircle size={14} />} onClick={addUsage}>Add HF Code</Button>
-              </Box>
-              {formData.yarnUsages.map((usage, idx) => (
-                <Paper key={idx} variant="outlined" sx={{ p: 1.5, mb: 1 }}>
-                  <Grid container spacing={1.5} alignItems="center">
-                    <Grid item xs={12} sm={4}>
-                      <TextField
-                        select fullWidth size="small" label="HF Code"
-                        value={usage.hf_code}
-                        onChange={(e) => handleHfCodeChange(idx, e.target.value)}
-                        SelectProps={{ native: true }}
-                      >
-                        <option value="">— Select HF Code —</option>
-                        {hfCodeOptions.map(opt => (
-                          <option key={opt.id} value={opt.hf_code}>
-                            {opt.hf_code} — {opt.description} (Rem: {(opt.remaining || 0).toFixed(1)} kg)
-                          </option>
-                        ))}
-                      </TextField>
-                    </Grid>
-                    <Grid item xs={4} sm={3}>
-                      {usage.remaining !== null && (
-                        <Chip
-                          label={`Stock: ${usage.remaining.toFixed(1)} kg`}
-                          color={usage.remaining > 0 ? 'success' : 'error'}
-                          size="small" variant="outlined"
-                        />
-                      )}
-                    </Grid>
-                    <Grid item xs={12} sm={5} sx={{ textAlign: 'right' }}>
-                      {formData.yarnUsages.length > 1 && (
-                        <IconButton size="small" color="error" onClick={() => removeUsage(idx)}>
-                          <Trash2 size={14} />
-                        </IconButton>
-                      )}
-                    </Grid>
-                  </Grid>
-                </Paper>
-              ))}
+              <Typography variant="subtitle1" fontWeight={600} color="primary" sx={{ mb: 1.5 }}>
+                Yarn Usage (Select HF Codes)
+              </Typography>
+              <Autocomplete
+                multiple
+                options={hfCodeOptions}
+                getOptionLabel={(option) => `${option.hf_code} — ${option.description} (Rem: ${(option.remaining || 0).toFixed(1)} kg)`}
+                isOptionEqualToValue={(option, value) => option.hf_code === value.hf_code}
+                value={hfCodeOptions.filter(opt => formData.yarnUsages.some(u => u.hf_code === opt.hf_code))}
+                onChange={(event, newValue) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    yarnUsages: newValue.map(opt => ({ hf_code: opt.hf_code, remaining: opt.remaining }))
+                  }));
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} variant="outlined" label="HF Codes" placeholder="Select HF Codes..." />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip
+                        key={key}
+                        variant="outlined"
+                        label={`${option.hf_code} (${option.remaining?.toFixed(1)}kg)`}
+                        {...tagProps}
+                        color={option.remaining > 0 ? 'success' : 'error'}
+                        size="small"
+                        sx={{ m: 0.5 }}
+                      />
+                    );
+                  })
+                }
+              />
             </Grid>
 
             {/* ── Section: Dyeing Lots ── */}
