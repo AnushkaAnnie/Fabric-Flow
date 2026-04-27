@@ -231,7 +231,7 @@ router.post('/', async (req, res, next) => {
           knitting_id: record.id,
           yarn_id: Number(usage.yarn_id),
           hf_code: usage.hf_code,
-          quantity: 0,
+          quantity: Number(usage.quantity) || 0,
         },
       });
     }
@@ -307,7 +307,7 @@ router.put('/:id', async (req, res, next) => {
           knitting_id: id,
           yarn_id: Number(usage.yarn_id),
           hf_code: usage.hf_code,
-          quantity: 0,
+          quantity: Number(usage.quantity) || 0,
         },
       });
     }

@@ -302,7 +302,8 @@ const Knitting = () => {
             </Grid>
             <Grid item xs={12} sm={3}>
               <TextField fullWidth label="Total Yarn Qty (kg)" type="number" value={formData.total_yarn_qty}
-                onChange={(e) => setFormData({ ...formData, total_yarn_qty: e.target.value })} required />
+                InputProps={{ readOnly: true }}
+                helperText="Auto-calculated from HF Code weights" />
             </Grid>
             <Grid item xs={12} sm={3}>
               <TextField fullWidth label="Loop Length (mm)" type="number" value={formData.loop_length}
@@ -369,10 +370,14 @@ const Knitting = () => {
                 isOptionEqualToValue={(option, value) => option.hf_code === value.hf_code}
                 value={hfCodeOptions.filter(opt => formData.yarnUsages.some(u => u.hf_code === opt.hf_code))}
                 onChange={(event, newValue) => {
-                  setFormData(prev => ({
-                    ...prev,
-                    yarnUsages: newValue.map(opt => ({ hf_code: opt.hf_code, remaining: opt.remaining }))
-                  }));
+                  setFormData(prev => {
+                    const newUsages = newValue.map(opt => {
+                      const existing = prev.yarnUsages.find(u => u.hf_code === opt.hf_code);
+                      return { hf_code: opt.hf_code, remaining: opt.remaining, quantity: existing ? existing.quantity : '', yarn_id: opt.id };
+                    });
+                    const totalQty = newUsages.reduce((sum, u) => sum + (Number(u.quantity) || 0), 0);
+                    return { ...prev, yarnUsages: newUsages, total_yarn_qty: totalQty || '' };
+                  });
                 }}
                 renderInput={(params) => (
                   <TextField {...params} variant="outlined" label="HF Codes" placeholder="Select HF Codes..." />
@@ -394,6 +399,33 @@ const Knitting = () => {
                   })
                 }
               />
+              {formData.yarnUsages.length > 0 && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Specify weight used for each selected HF Code:</Typography>
+                  <Grid container spacing={2}>
+                    {formData.yarnUsages.map((usage, idx) => (
+                      <Grid item xs={12} sm={4} key={idx}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label={`${usage.hf_code} Weight (kg)`}
+                          type="number"
+                          value={usage.quantity || ''}
+                          onChange={(e) => {
+                            const newUsages = [...formData.yarnUsages];
+                            newUsages[idx].quantity = e.target.value;
+                            const totalQty = newUsages.reduce((sum, u) => sum + (Number(u.quantity) || 0), 0);
+                            setFormData(prev => ({ ...prev, yarnUsages: newUsages, total_yarn_qty: totalQty || '' }));
+                          }}
+                          InputProps={{
+                            endAdornment: <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary', whiteSpace: 'nowrap' }}>/ {usage.remaining?.toFixed(1)} kg</Typography>
+                          }}
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )}
             </Grid>
 
             {/* ── Section: Dyeing Lots ── */}
