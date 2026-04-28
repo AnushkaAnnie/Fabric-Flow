@@ -21,6 +21,14 @@ const emptyForm = () => ({
   date: new Date().toISOString().split('T')[0],
   yarnUsages: [emptyYarnUsage()],
   lots: [],
+  greyFabric: {
+    description: '',
+    gauge: '',
+    loopLength: '',
+    diameter: '',
+    gsm: '',
+    quantity: '',
+  },
 });
 
 const Knitting = () => {
@@ -158,6 +166,7 @@ const Knitting = () => {
       yarnUsages: (row.yarnUsages || []).map(u => ({
         hf_code: u.hf_code,
         yarn_id: u.yarn_id,
+        quantity: u.quantity,
         remaining: null,
         total: null,
       })),
@@ -171,6 +180,21 @@ const Knitting = () => {
           weight: e.weight,
         })),
       })),
+      greyFabric: row.greyFabric ? {
+        description: row.greyFabric.description || '',
+        gauge: row.greyFabric.gauge || '',
+        loopLength: row.greyFabric.loopLength || '',
+        diameter: row.greyFabric.diameter || '',
+        gsm: row.greyFabric.gsm || '',
+        quantity: row.greyFabric.quantity || '',
+      } : {
+        description: '',
+        gauge: '',
+        loopLength: '',
+        diameter: '',
+        gsm: '',
+        quantity: '',
+      },
     });
     setEditingId(row.id);
     setModalOpen(true);
@@ -496,6 +520,62 @@ const Knitting = () => {
                   </Grid>
                 </Paper>
               ))}
+            </Grid>
+
+            {/* ── Section: Grey Fabric Specifications ── */}
+            <Grid item xs={12}>
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="subtitle1" fontWeight={600} color="primary" gutterBottom>
+                Grey Fabric Specifications
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                Specify the grey fabric (knitted output) characteristics for this job.
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField fullWidth label="Description (e.g., Cotton Jersey)" value={formData.greyFabric.description}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      greyFabric: { ...prev.greyFabric, description: e.target.value }
+                    }))} />
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                  <TextField fullWidth label="Gauge" value={formData.greyFabric.gauge}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      greyFabric: { ...prev.greyFabric, gauge: e.target.value }
+                    }))} />
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                  <TextField fullWidth label="Loop Length (mm)" type="number" value={formData.greyFabric.loopLength}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      greyFabric: { ...prev.greyFabric, loopLength: e.target.value }
+                    }))} />
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                  <TextField fullWidth label="Diameter (inches)" type="number" value={formData.greyFabric.diameter}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      greyFabric: { ...prev.greyFabric, diameter: e.target.value }
+                    }))} />
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                  <TextField fullWidth label="GSM" type="number" value={formData.greyFabric.gsm}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      greyFabric: { ...prev.greyFabric, gsm: e.target.value }
+                    }))} />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField fullWidth label="Quantity Produced (kg)" type="number" value={formData.greyFabric.quantity}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      greyFabric: { ...prev.greyFabric, quantity: e.target.value }
+                    }))}
+                    helperText={formData.yarnUsages.length > 0 ? `Max available: ${formData.total_yarn_qty || 0} kg (from yarn usage)` : ''} />
+                </Grid>
+              </Grid>
             </Grid>
 
           </Grid>

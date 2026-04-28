@@ -7,9 +7,12 @@ import Layout from './components/Layout/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Yarn from './pages/Yarn';
+import YarnStockDashboard from './pages/YarnStockDashboard';
+import YarnInwardEntry from './pages/YarnInwardEntry';
 import FabricPurchase from './pages/FabricPurchase';
 import Knitting from './pages/Knitting';
 import Dyeing from './pages/Dyeing';
+import IssueToDyer from './pages/IssueToDyer';
 import Compacting from './pages/Compacting';
 import Search from './pages/Search';
 import MasterData from './pages/MasterData';
@@ -24,9 +27,12 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/yarn" element={<Yarn />} />
+            <Route path="/yarn-stock" element={<YarnStockDashboard />} />
+            <Route path="/yarn-inward" element={<YarnInwardEntry />} />
             <Route path="/fabric-purchase" element={<FabricPurchase />} />
             <Route path="/knitting" element={<Knitting />} />
             <Route path="/dyeing" element={<Dyeing />} />
+            <Route path="/issue-to-dyer" element={<IssueToDyer />} />
             <Route path="/compacting" element={<Compacting />} />
             <Route path="/search" element={<Search />} />
             <Route path="/master" element={<MasterData />} />

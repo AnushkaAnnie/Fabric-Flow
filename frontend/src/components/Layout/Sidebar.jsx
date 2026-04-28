@@ -1,6 +1,6 @@
 import { Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography, Divider, IconButton } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Scissors, Droplets, PackageCheck, Search, Database, LogOut, Layers } from 'lucide-react';
+import { LayoutDashboard, Scissors, Droplets, PackageCheck, Search, Database, LogOut, Layers, TrendingUp, PackagePlus, Send } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 
 const DRAWER_WIDTH = 260;
@@ -8,9 +8,12 @@ const DRAWER_WIDTH = 260;
 const menuItems = [
   { text: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/' },
   { text: 'Yarn', icon: <Database size={20} />, path: '/yarn' },
+  { text: 'Yarn Stock', icon: <TrendingUp size={20} />, path: '/yarn-stock' },
+  { text: 'Yarn Inward', icon: <PackagePlus size={20} />, path: '/yarn-inward' },
   { text: 'Fabric Purchase', icon: <Layers size={20} />, path: '/fabric-purchase' },
   { text: 'Knitting', icon: <Scissors size={20} />, path: '/knitting' },
   { text: 'Dyeing', icon: <Droplets size={20} />, path: '/dyeing' },
+  { text: 'Issue to Dyer', icon: <Send size={20} />, path: '/issue-to-dyer' },
   { text: 'Compacting', icon: <PackageCheck size={20} />, path: '/compacting' },
   { text: 'Search & Track', icon: <Search size={20} />, path: '/search' },
   { text: 'Master Data', icon: <Database size={20} />, path: '/master' },

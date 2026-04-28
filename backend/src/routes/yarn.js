@@ -78,6 +78,53 @@ router.get('/list/hf-codes', async (req, res, next) => {
 });
 
 
+// GET /api/yarn/stock - Compute total received, used, and remaining per yarn
+router.get('/stock', async (req, res, next) => {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Fetch all yarns
+      const yarns = await tx.yarn.findMany({
+        select: { id: true, hf_code: true, description: true },
+        orderBy: { hf_code: 'asc' },
+      });
+
+      // Fetch all yarn receipts grouped by yarn_id
+      const receipts = await tx.yarnReceipt.groupBy({
+        by: ['yarnId'],
+        _sum: { quantity: true },
+      });
+
+      // Fetch all yarn usages grouped by yarn_id
+      const usages = await tx.knittingYarnUsage.groupBy({
+        by: ['yarn_id'],
+        _sum: { quantity: true },
+      });
+
+      // Build lookup maps
+      const receiptMap = new Map(receipts.map(r => [r.yarnId, r._sum.quantity || 0]));
+      const usageMap = new Map(usages.map(u => [u.yarn_id, u._sum.quantity || 0]));
+
+      // Compute stock for each yarn
+      return yarns.map(yarn => {
+        const totalReceived = receiptMap.get(yarn.id) || 0;
+        const totalUsed = usageMap.get(yarn.id) || 0;
+        const remaining = totalReceived - totalUsed;
+
+        return {
+          yarnId: yarn.id,
+          hfCode: yarn.hf_code,
+          description: yarn.description,
+          totalReceived,
+          totalUsed,
+          remaining,
+        };
+      });
+    });
+
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
 // GET /api/yarn/:id
 router.get('/:id', async (req, res, next) => {
   try {

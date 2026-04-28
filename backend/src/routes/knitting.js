@@ -15,6 +15,7 @@ const INCLUDE = {
       entries: { include: { colour: true } },
     },
   },
+  greyFabric: true,
 };
 
 // GET /api/knitting
@@ -260,6 +261,8 @@ router.post('/', async (req, res, next) => {
       yarnUsages = [],
       // New: array of { lot_no, dyer_name_id, entries: [{ colour_id, weight }] }
       lots = [],
+      // New: grey fabric specs { description, gauge, loopLength, diameter, gsm, quantity }
+      greyFabric = null,
     } = req.body;
     const fallbackRolls = Number(no_of_rolls) || 0;
 
@@ -274,6 +277,16 @@ router.post('/', async (req, res, next) => {
     // Validate stock in 2 batched queries
     const stockErrors = await validateYarnStock(yarnUsages);
     if (stockErrors.length) return res.status(400).json({ message: stockErrors.join(' ') });
+
+    // Validate grey fabric quantity if provided
+    if (greyFabric && greyFabric.quantity) {
+      const totalYarnUsed = yarnUsages.reduce((sum, u) => sum + Number(u.quantity || 0), 0);
+      if (Number(greyFabric.quantity) > totalYarnUsed) {
+        return res.status(400).json({
+          message: `Grey fabric quantity (${greyFabric.quantity} kg) cannot exceed total yarn usage (${totalYarnUsed} kg).`,
+        });
+      }
+    }
 
     const record = await prisma.knitting.create({
       data: {
@@ -307,6 +320,21 @@ router.post('/', async (req, res, next) => {
       })),
     });
 
+    // Create grey fabric record if provided
+    if (greyFabric) {
+      await prisma.greyFabric.create({
+        data: {
+          knittingId: record.id,
+          description: greyFabric.description || '',
+          gauge: greyFabric.gauge || null,
+          loopLength: greyFabric.loopLength ? Number(greyFabric.loopLength) : null,
+          diameter: greyFabric.diameter ? Number(greyFabric.diameter) : null,
+          gsm: greyFabric.gsm ? Number(greyFabric.gsm) : null,
+          quantity: Number(greyFabric.quantity) || 0,
+        },
+      });
+    }
+
     // Sync dyeing lots
     if (lots.length) {
       await syncDyeingFromLots(record.id, lots, { hf_code: primaryHfCode, count, gauge, dia, no_of_rolls: fallbackRolls });
@@ -336,6 +364,8 @@ router.put('/:id', async (req, res, next) => {
       no_of_rolls, date,
       yarnUsages = [],
       lots = [],
+      // New: grey fabric specs
+      greyFabric = null,
     } = req.body;
     const fallbackRolls = Number(no_of_rolls) || 0;
 
@@ -348,6 +378,16 @@ router.put('/:id', async (req, res, next) => {
     // Validate stock in 2 batched queries (exclude this record's own usages)
     const stockErrors = await validateYarnStock(yarnUsages, id);
     if (stockErrors.length) return res.status(400).json({ message: stockErrors.join(' ') });
+
+    // Validate grey fabric quantity if provided
+    if (greyFabric && greyFabric.quantity) {
+      const totalYarnUsed = yarnUsages.reduce((sum, u) => sum + Number(u.quantity || 0), 0);
+      if (Number(greyFabric.quantity) > totalYarnUsed) {
+        return res.status(400).json({
+          message: `Grey fabric quantity (${greyFabric.quantity} kg) cannot exceed total yarn usage (${totalYarnUsed} kg).`,
+        });
+      }
+    }
 
     // Fetch old record to see if knitter_name_id changed
     const oldRecord = await prisma.knitting.findUnique({ where: { id } });
@@ -385,6 +425,36 @@ router.put('/:id', async (req, res, next) => {
         quantity: Number(usage.quantity) || 0,
       })),
     });
+
+    // Update or create grey fabric record
+    if (greyFabric) {
+      const existing = await prisma.greyFabric.findUnique({ where: { knittingId: id } });
+      if (existing) {
+        await prisma.greyFabric.update({
+          where: { knittingId: id },
+          data: {
+            description: greyFabric.description || '',
+            gauge: greyFabric.gauge || null,
+            loopLength: greyFabric.loopLength ? Number(greyFabric.loopLength) : null,
+            diameter: greyFabric.diameter ? Number(greyFabric.diameter) : null,
+            gsm: greyFabric.gsm ? Number(greyFabric.gsm) : null,
+            quantity: Number(greyFabric.quantity) || 0,
+          },
+        });
+      } else {
+        await prisma.greyFabric.create({
+          data: {
+            knittingId: id,
+            description: greyFabric.description || '',
+            gauge: greyFabric.gauge || null,
+            loopLength: greyFabric.loopLength ? Number(greyFabric.loopLength) : null,
+            diameter: greyFabric.diameter ? Number(greyFabric.diameter) : null,
+            gsm: greyFabric.gsm ? Number(greyFabric.gsm) : null,
+            quantity: Number(greyFabric.quantity) || 0,
+          },
+        });
+      }
+    }
 
     // Always sync so removed lots are deleted even when lots=[]
     await syncDyeingFromLots(id, lots, { hf_code: primaryHfCode, count, gauge, dia, no_of_rolls: fallbackRolls });
@@ -454,6 +524,69 @@ router.get('/yarn-remaining/:hf_code', async (req, res, next) => {
     });
     if (!result) return res.status(404).json({ message: 'Yarn not found.' });
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/knitting/:id/grey-fabric — Update grey fabric specs
+router.put('/:id/grey-fabric', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const { description, gauge, loopLength, diameter, gsm, quantity } = req.body;
+
+    // Check if knitting exists
+    const knitting = await prisma.knitting.findUnique({
+      where: { id },
+      include: { yarnUsages: true, greyFabric: true },
+    });
+
+    if (!knitting) {
+      return res.status(404).json({ message: 'Knitting record not found.' });
+    }
+
+    // Validate grey fabric quantity against total yarn usage
+    if (quantity) {
+      const totalYarnUsed = knitting.yarnUsages.reduce((sum, usage) => sum + Number(usage.quantity || 0), 0);
+      if (Number(quantity) > totalYarnUsed) {
+        return res.status(400).json({
+          message: `Grey fabric quantity (${quantity} kg) cannot exceed total yarn usage (${totalYarnUsed} kg).`,
+        });
+      }
+    }
+
+    // Update or create grey fabric
+    let greyFabric;
+    if (knitting.greyFabric) {
+      greyFabric = await prisma.greyFabric.update({
+        where: { knittingId: id },
+        data: {
+          description: description !== undefined ? description : knitting.greyFabric.description,
+          gauge: gauge !== undefined ? gauge : knitting.greyFabric.gauge,
+          loopLength: loopLength !== undefined ? Number(loopLength) : knitting.greyFabric.loopLength,
+          diameter: diameter !== undefined ? Number(diameter) : knitting.greyFabric.diameter,
+          gsm: gsm !== undefined ? Number(gsm) : knitting.greyFabric.gsm,
+          quantity: quantity !== undefined ? Number(quantity) : knitting.greyFabric.quantity,
+        },
+      });
+    } else {
+      greyFabric = await prisma.greyFabric.create({
+        data: {
+          knittingId: id,
+          description: description || '',
+          gauge: gauge || null,
+          loopLength: loopLength ? Number(loopLength) : null,
+          diameter: diameter ? Number(diameter) : null,
+          gsm: gsm ? Number(gsm) : null,
+          quantity: Number(quantity) || 0,
+        },
+      });
+    }
+
+    res.json({
+      message: 'Grey fabric specs updated successfully.',
+      data: greyFabric,
+    });
   } catch (err) {
     next(err);
   }

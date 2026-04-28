@@ -117,6 +117,7 @@ model Yarn {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   yarnUsages        KnittingYarnUsage[]
+  receipts          YarnReceipt[]
 }
 
 model InhouseKnittedFabric {
@@ -195,6 +196,8 @@ model Knitting {
   updatedAt             DateTime            @updatedAt
   yarnUsages            KnittingYarnUsage[]
   lots                  KnittingLot[]
+  greyFabric            GreyFabric?
+  dyeingLotIssues       DyeingLot[]
 }
 
 model Dyeing {
@@ -239,4 +242,52 @@ model Compacting {
   date              DateTime
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
+}
+
+model YarnReceipt {
+  id          Int      @id @default(autoincrement())
+  yarn        Yarn     @relation(fields: [yarnId], references: [id])
+  yarnId      Int
+  quantity    Float
+  receiptDate DateTime @default(now())
+  dcNo        String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model GreyFabric {
+  id          Int      @id @default(autoincrement())
+  knitting    Knitting @relation(fields: [knittingId], references: [id])
+  knittingId  Int      @unique
+  description String
+  gauge       String?
+  loopLength  Float?
+  diameter    Float?
+  gsm         Float?
+  quantity    Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DyeingOrder {
+  id        Int      @id @default(autoincrement())
+  dcNo      String   @unique
+  dyerName  String
+  issueDate DateTime @default(now())
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lots      DyeingLot[]
+}
+
+model DyeingLot {
+  id            Int         @id @default(autoincrement())
+  dyeingOrder   DyeingOrder @relation(fields: [dyeingOrderId], references: [id])
+  dyeingOrderId Int
+  knitting      Knitting    @relation(fields: [knittingId], references: [id])
+  knittingId    Int
+  colour        String
+  weight        Float
+  createdAt     DateTime    @default(now())
 }
