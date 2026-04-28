@@ -11,14 +11,14 @@ import api from '../api/axios';
 
 const emptyYarnUsage = () => ({ hf_code: '', yarn_id: '', remaining: null, total: null });
 const emptyLotEntry = () => ({ colour_id: '', weight: '' });
-const emptyLot = () => ({ lot_no: '', job_work_no: '', dyer_name_id: '', entries: [emptyLotEntry()] });
+const emptyLot = () => ({ lot_no: '', job_work_no: '', no_of_rolls: '', dyer_name_id: '', entries: [emptyLotEntry()] });
 
 const emptyForm = () => ({
   dc_no: '', knitter_name_id: '', total_yarn_qty: '', loop_length: '', dia: '', count: '', gauge: '',
   date_given: new Date().toISOString().split('T')[0],
   fabric_description_id: '', grey_fabric_weight: '', received_weight: '',
   other_yarn_type: '', other_yarn_percentage: '',
-  no_of_rolls: '', date: new Date().toISOString().split('T')[0],
+  date: new Date().toISOString().split('T')[0],
   yarnUsages: [emptyYarnUsage()],
   lots: [],
 });
@@ -153,7 +153,6 @@ const Knitting = () => {
       received_weight: row.received_weight || '',
       other_yarn_type: row.other_yarn_type || '',
       other_yarn_percentage: row.other_yarn_percentage || '',
-      no_of_rolls: row.no_of_rolls || '',
       date: new Date(row.date).toISOString().split('T')[0],
       total_yarn_qty: row.total_yarn_qty || '',
       yarnUsages: (row.yarnUsages || []).map(u => ({
@@ -165,6 +164,7 @@ const Knitting = () => {
       lots: (row.lots || []).map(lot => ({
         lot_no: lot.lot_no,
         job_work_no: lot.job_work_no || '',
+        no_of_rolls: lot.no_of_rolls ?? row.no_of_rolls ?? '',
         dyer_name_id: lot.dyer_name_id,
         entries: (lot.entries || []).map(e => ({
           colour_id: e.colour_id,
@@ -201,14 +201,13 @@ const Knitting = () => {
     },
     { field: 'dc_no', headerName: 'DC No' },
     { field: 'knitterName', headerName: 'Knitter', renderCell: (row) => row.knitterName?.name },
-    { field: 'fabricDescription', headerName: 'Fabric', renderCell: (row) => row.fabricDescription?.name },
+    { field: 'fabricDescription', headerName: 'Description', renderCell: (row) => row.fabricDescription?.name || '—' },
     { field: 'loop_length', headerName: 'Loop Length' },
     { field: 'dia', headerName: 'Dia' },
     { field: 'count', headerName: 'Count' },
     { field: 'gauge', headerName: 'Gauge' },
     { field: 'grey_fabric_weight', headerName: 'Grey Wt (kg)' },
     { field: 'received_weight', headerName: 'Received Wt (kg)', renderCell: (row) => row.received_weight != null ? row.received_weight : '—' },
-    { field: 'no_of_rolls', headerName: 'Rolls' },
     {
       field: 'lots', headerName: 'Lots',
       renderCell: (row) => (row.lots || []).length > 0
@@ -247,6 +246,9 @@ const Knitting = () => {
               row.lots.map((lot, li) => (
                 <Box key={li} sx={{ mb: 1, p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
                   <Typography variant="body2" fontWeight={600}>Lot: {lot.lot_no} {lot.job_work_no ? `(Job Work: ${lot.job_work_no}) ` : ''}→ {lot.dyerName?.name}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                    Rolls: {lot.no_of_rolls ?? 0}
+                  </Typography>
                   {(lot.entries || []).map((e, ei) => (
                     <Typography key={ei} variant="body2" color="text.secondary" sx={{ ml: 1 }}>
                       {e.colour?.name} — {e.weight} kg
@@ -335,10 +337,6 @@ const Knitting = () => {
               <TextField fullWidth label="Received Weight from Yarn (kg)" type="number" value={formData.received_weight}
                 onChange={(e) => setFormData({ ...formData, received_weight: e.target.value })}
                 helperText="Actual weight received back from knitter" />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="No of Rolls" type="number" value={formData.no_of_rolls}
-                onChange={(e) => setFormData({ ...formData, no_of_rolls: e.target.value })} />
             </Grid>
             <Grid item xs={12} sm={3}>
               <TextField fullWidth label="Other Yarn Type" value={formData.other_yarn_type}
@@ -455,6 +453,10 @@ const Knitting = () => {
                       <SmartDropdown size="small" label="Dyer Name" value={lot.dyer_name_id}
                         onChange={(e) => updateLot(lotIdx, 'dyer_name_id', e.target.value)}
                         entity="dyer-names" />
+                    </Grid>
+                    <Grid item xs={12} sm={2}>
+                      <TextField fullWidth size="small" type="number" label="No of Rolls" value={lot.no_of_rolls}
+                        onChange={(e) => updateLot(lotIdx, 'no_of_rolls', e.target.value)} />
                     </Grid>
                     <Grid item xs={12} sm={2} sx={{ textAlign: 'right' }}>
                       <IconButton size="small" color="error" onClick={() => removeLot(lotIdx)}>

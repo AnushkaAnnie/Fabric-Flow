@@ -81,6 +81,7 @@ async function recalculateKnitterBalance(knitter_id) {
 // ─────────────────────────────────────────────────────
 async function syncDyeingFromLots(knittingId, lots, knitting) {
   const incomingLotNos = lots.map(l => l.lot_no);
+  const fallbackRolls = Number(knitting.no_of_rolls || 0);
 
   // ── 1. Delete lots that were removed from the form ──────────────────────
   const existingLots = await prisma.knittingLot.findMany({
@@ -112,13 +113,18 @@ async function syncDyeingFromLots(knittingId, lots, knitting) {
           knitting_id: knittingId,
           lot_no: lot.lot_no,
           job_work_no: lot.job_work_no || '',
+          no_of_rolls: Number(lot.no_of_rolls ?? fallbackRolls) || 0,
           dyer_name_id: Number(lot.dyer_name_id),
         },
       });
     } else {
       await prisma.knittingLot.update({
         where: { id: knittingLot.id },
-        data: { dyer_name_id: Number(lot.dyer_name_id), job_work_no: lot.job_work_no || '' },
+        data: {
+          dyer_name_id: Number(lot.dyer_name_id),
+          job_work_no: lot.job_work_no || '',
+          no_of_rolls: Number(lot.no_of_rolls ?? fallbackRolls) || 0,
+        },
       });
     }
 
@@ -156,7 +162,7 @@ async function syncDyeingFromLots(knittingId, lots, knitting) {
         gg: knitting.gauge ? Number(knitting.gauge) || 0 : 0,
         initial_dia: Number(knitting.dia) || 0,
         final_dia: 0,
-        no_of_rolls: 0,
+        no_of_rolls: Number(lot.no_of_rolls ?? fallbackRolls) || 0,
         final_weight: 0,
         process_loss: 0,
         date: new Date(),
@@ -176,6 +182,7 @@ async function syncDyeingFromLots(knittingId, lots, knitting) {
               initial_weight: Number(entry.weight),
               dyer_name_id: Number(lot.dyer_name_id),
               colour_id: Number(entry.colour_id),
+              no_of_rolls: Number(lot.no_of_rolls ?? fallbackRolls) || 0,
             },
           }).catch(() => {});
         }
@@ -254,6 +261,7 @@ router.post('/', async (req, res, next) => {
       // New: array of { lot_no, dyer_name_id, entries: [{ colour_id, weight }] }
       lots = [],
     } = req.body;
+    const fallbackRolls = Number(no_of_rolls) || 0;
 
     // yarnUsages must have at least one entry
     if (!yarnUsages.length) {
@@ -283,7 +291,7 @@ router.post('/', async (req, res, next) => {
         received_weight: received_weight !== '' && received_weight != null ? Number(received_weight) : null,
         other_yarn_type,
         other_yarn_percentage: other_yarn_percentage ? Number(other_yarn_percentage) : null,
-        no_of_rolls: Number(no_of_rolls),
+        no_of_rolls: fallbackRolls,
         date: new Date(date),
       },
       include: INCLUDE,
@@ -301,7 +309,7 @@ router.post('/', async (req, res, next) => {
 
     // Sync dyeing lots
     if (lots.length) {
-      await syncDyeingFromLots(record.id, lots, { hf_code: primaryHfCode, count, gauge, dia });
+      await syncDyeingFromLots(record.id, lots, { hf_code: primaryHfCode, count, gauge, dia, no_of_rolls: fallbackRolls });
     }
 
     await recalculateKnitterBalance(record.knitter_name_id);
@@ -329,6 +337,7 @@ router.put('/:id', async (req, res, next) => {
       yarnUsages = [],
       lots = [],
     } = req.body;
+    const fallbackRolls = Number(no_of_rolls) || 0;
 
     if (!yarnUsages.length) {
       return res.status(400).json({ message: 'At least one yarn HF code usage is required.' });
@@ -363,7 +372,7 @@ router.put('/:id', async (req, res, next) => {
         received_weight: received_weight !== '' && received_weight != null ? Number(received_weight) : null,
         other_yarn_type,
         other_yarn_percentage: other_yarn_percentage ? Number(other_yarn_percentage) : null,
-        no_of_rolls: Number(no_of_rolls),
+        no_of_rolls: fallbackRolls,
         date: new Date(date),
       },
     });
@@ -378,7 +387,7 @@ router.put('/:id', async (req, res, next) => {
     });
 
     // Always sync so removed lots are deleted even when lots=[]
-    await syncDyeingFromLots(id, lots, { hf_code: primaryHfCode, count, gauge, dia });
+    await syncDyeingFromLots(id, lots, { hf_code: primaryHfCode, count, gauge, dia, no_of_rolls: fallbackRolls });
 
     await recalculateKnitterBalance(Number(knitter_name_id));
     if (oldRecord && oldRecord.knitter_name_id !== Number(knitter_name_id)) {

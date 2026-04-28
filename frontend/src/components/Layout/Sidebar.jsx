@@ -1,6 +1,6 @@
 import { Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography, Divider, IconButton } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Scissors, Droplets, PackageCheck, Search, Database, LogOut } from 'lucide-react';
+import { LayoutDashboard, Scissors, Droplets, PackageCheck, Search, Database, LogOut, Layers } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 
 const DRAWER_WIDTH = 260;
@@ -8,6 +8,7 @@ const DRAWER_WIDTH = 260;
 const menuItems = [
   { text: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/' },
   { text: 'Yarn', icon: <Database size={20} />, path: '/yarn' },
+  { text: 'Fabric Purchase', icon: <Layers size={20} />, path: '/fabric-purchase' },
   { text: 'Knitting', icon: <Scissors size={20} />, path: '/knitting' },
   { text: 'Dyeing', icon: <Droplets size={20} />, path: '/dyeing' },
   { text: 'Compacting', icon: <PackageCheck size={20} />, path: '/compacting' },

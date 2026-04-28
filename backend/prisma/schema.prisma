@@ -151,6 +151,7 @@ model KnittingLot {
   knitting_id  Int
   lot_no       String             @unique
   job_work_no  String             @default("")
+  no_of_rolls  Int                @default(0)
   dyerName     DyerName           @relation(fields: [dyer_name_id], references: [id])
   dyer_name_id Int
   entries      KnittingLotEntry[]

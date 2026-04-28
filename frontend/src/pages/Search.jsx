@@ -39,7 +39,7 @@ const Search = () => {
           <Box sx={{ display: 'flex', gap: 2 }}>
             <TextField 
               fullWidth
-              placeholder="Search by HF Code or Lot No..."
+              placeholder="Search by HF Code, Fabric Code or Lot No..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -50,20 +50,38 @@ const Search = () => {
         </form>
       </Card>
 
-      {result && result.yarn && (
+      {result && (result.yarn || result.fabric) && (
         <Box>
           {/* Yarn Stage */}
-          <Typography variant="h5" color="primary.main" mb={2}>Stage 1: Yarn</Typography>
-          <Card sx={{ mb: 4, borderLeft: '4px solid #14b8a6' }}>
-            <CardContent>
-              <Grid container spacing={2}>
-                <Grid item xs={3}><Typography color="text.secondary">HF Code</Typography><Typography fontWeight={600}>{result.yarn.hf_code}</Typography></Grid>
-                <Grid item xs={3}><Typography color="text.secondary">Mill</Typography><Typography fontWeight={600}>{result.yarn.millName?.name}</Typography></Grid>
-                <Grid item xs={3}><Typography color="text.secondary">Desc</Typography><Typography fontWeight={600}>{result.yarn.description}</Typography></Grid>
-                <Grid item xs={3}><Typography color="text.secondary">Total Weight</Typography><Typography fontWeight={600}>{result.yarn.total_weight} kg</Typography></Grid>
-              </Grid>
-            </CardContent>
-          </Card>
+          {result.yarn ? (
+            <>
+              <Typography variant="h5" color="primary.main" mb={2}>Stage 1: Yarn</Typography>
+              <Card sx={{ mb: 4, borderLeft: '4px solid #14b8a6' }}>
+                <CardContent>
+                  <Grid container spacing={2}>
+                    <Grid item xs={3}><Typography color="text.secondary">HF Code</Typography><Typography fontWeight={600}>{result.yarn.hf_code}</Typography></Grid>
+                    <Grid item xs={3}><Typography color="text.secondary">Mill</Typography><Typography fontWeight={600}>{result.yarn.millName?.name}</Typography></Grid>
+                    <Grid item xs={3}><Typography color="text.secondary">Desc</Typography><Typography fontWeight={600}>{result.yarn.description}</Typography></Grid>
+                    <Grid item xs={3}><Typography color="text.secondary">Total Weight</Typography><Typography fontWeight={600}>{result.yarn.total_weight} kg</Typography></Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <>
+              <Typography variant="h5" color="primary.main" mb={2}>Stage 1: Fabric Purchase</Typography>
+              <Card sx={{ mb: 4, borderLeft: '4px solid #14b8a6' }}>
+                <CardContent>
+                  <Grid container spacing={2}>
+                    <Grid item xs={3}><Typography color="text.secondary">Fabric Code</Typography><Typography fontWeight={600}>{result.fabric.fabric_code}</Typography></Grid>
+                    <Grid item xs={3}><Typography color="text.secondary">PO No</Typography><Typography fontWeight={600}>{result.fabric.purchase_order_no}</Typography></Grid>
+                    <Grid item xs={3}><Typography color="text.secondary">Particulars</Typography><Typography fontWeight={600}>{result.fabric.particulars}</Typography></Grid>
+                    <Grid item xs={3}><Typography color="text.secondary">Total Weight</Typography><Typography fontWeight={600}>{result.fabric.total_weight} kg</Typography></Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </>
+          )}
 
           {/* Knitting Stage */}
           {result.knitting.length > 0 && (
@@ -88,7 +106,7 @@ const Search = () => {
           {/* Dyeing Stage */}
           {result.dyeing.length > 0 && (
             <>
-              <Typography variant="h5" color="error.main" mb={2} mt={4}>Stage 3: Dyeing</Typography>
+              <Typography variant="h5" color="error.main" mb={2} mt={4}>{result.fabric ? 'Stage 2: Dyeing' : 'Stage 3: Dyeing'}</Typography>
               {result.dyeing.map(dye => (
                 <Card key={dye.id} sx={{ mb: 2, borderLeft: '4px solid #ef4444' }}>
                   <CardContent>
@@ -102,7 +120,7 @@ const Search = () => {
                     {/* Compacting sub-stage for this lot */}
                     {result.compacting.filter(c => c.lot_no === dye.lot_no).map(comp => (
                       <Box key={comp.id} sx={{ mt: 2, pt: 2, borderTop: '1px solid #1e293b' }}>
-                        <Typography variant="subtitle2" color="primary.main" mb={1}>Stage 4: Compacting</Typography>
+                        <Typography variant="subtitle2" color="primary.main" mb={1}>{result.fabric ? 'Stage 3: Compacting' : 'Stage 4: Compacting'}</Typography>
                         <Grid container spacing={2}>
                           <Grid item xs={3}><Typography color="text.secondary">Compacter</Typography><Typography fontWeight={600}>{comp.compacterName?.name}</Typography></Grid>
                           <Grid item xs={3}><Typography color="text.secondary">Input / Output</Typography><Typography fontWeight={600}>{comp.initial_weight} &rarr; {comp.final_weight} kg</Typography></Grid>
@@ -119,7 +137,7 @@ const Search = () => {
         </Box>
       )}
 
-      {result && !result.yarn && query && !loading && (
+      {result && !result.yarn && !result.fabric && query && !loading && (
         <Card sx={{ p: 4, textAlign: 'center' }}>
           <Typography color="text.secondary">No matching records found for "{query}"</Typography>
         </Card>

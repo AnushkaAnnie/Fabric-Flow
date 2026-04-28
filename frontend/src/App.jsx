@@ -7,6 +7,7 @@ import Layout from './components/Layout/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Yarn from './pages/Yarn';
+import FabricPurchase from './pages/FabricPurchase';
 import Knitting from './pages/Knitting';
 import Dyeing from './pages/Dyeing';
 import Compacting from './pages/Compacting';
@@ -23,6 +24,7 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/yarn" element={<Yarn />} />
+            <Route path="/fabric-purchase" element={<FabricPurchase />} />
             <Route path="/knitting" element={<Knitting />} />
             <Route path="/dyeing" element={<Dyeing />} />
             <Route path="/compacting" element={<Compacting />} />

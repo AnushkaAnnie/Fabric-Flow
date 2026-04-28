@@ -69,7 +69,7 @@ router.post('/', async (req, res, next) => {
     let resolvedHfCode = hf_code;
 
     if (sourceType === 'INHOUSE_FABRIC') {
-      if (!fabric_code) return res.status(400).json({ message: 'Fabric code is required for inhouse fabric dyeing.' });
+      if (!fabric_code) return res.status(400).json({ message: 'Fabric code is required for fabric purchase dyeing.' });
       const fabric = await prisma.inhouseKnittedFabric.findUnique({ where: { fabric_code } });
       if (!fabric) return res.status(404).json({ message: `Fabric Code "${fabric_code}" not found.` });
       resolvedInitialWeight = fabric.total_weight;
@@ -127,7 +127,7 @@ router.put('/:id', async (req, res, next) => {
     let resolvedHfCode = hf_code;
 
     if (sourceType === 'INHOUSE_FABRIC') {
-      if (!fabric_code) return res.status(400).json({ message: 'Fabric code is required for inhouse fabric dyeing.' });
+      if (!fabric_code) return res.status(400).json({ message: 'Fabric code is required for fabric purchase dyeing.' });
       const fabric = await prisma.inhouseKnittedFabric.findUnique({ where: { fabric_code } });
       if (!fabric) return res.status(404).json({ message: `Fabric Code "${fabric_code}" not found.` });
       resolvedInitialWeight = fabric.total_weight;

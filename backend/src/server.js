@@ -47,6 +47,7 @@ app.use('/api/knitting', knittingRoutes);
 app.use('/api/dyeing', dyeingRoutes);
 app.use('/api/compacting', compactingRoutes);
 app.use('/api/inhouse-fabric', inhouseFabricRoutes);
+app.use('/api/fabric-purchase', inhouseFabricRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
