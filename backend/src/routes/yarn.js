@@ -54,14 +54,23 @@ router.get('/list/hf-codes', async (req, res, next) => {
   try {
     const result = await prisma.$transaction(async (tx) => {
       // Two queries total instead of N+1
-      const yarns = await tx.yarn.findMany({
-        select: { id: true, hf_code: true, description: true, total_weight: true, available_weight: true },
-        orderBy: { hf_code: 'asc' },
-      });
+      const [yarns, usageGroups] = await Promise.all([
+        tx.yarn.findMany({
+          select: { id: true, hf_code: true, description: true, total_weight: true },
+          orderBy: { hf_code: 'asc' },
+        }),
+        tx.knittingYarnUsage.groupBy({
+          by: ['yarn_id'],
+          _sum: { quantity: true },
+        }),
+      ]);
+
+      // Build a lookup map: yarn_id → total used
+      const usedMap = new Map(usageGroups.map(g => [g.yarn_id, g._sum.quantity || 0]));
 
       return yarns.map(y => {
-        const remaining = Number(y.available_weight || 0);
-        return { ...y, used: Number(y.total_weight || 0) - remaining, remaining };
+        const used = usedMap.get(y.id) || 0;
+        return { ...y, used, remaining: y.total_weight - used };
       });
     });
     res.json(result);
@@ -69,31 +78,7 @@ router.get('/list/hf-codes', async (req, res, next) => {
 });
 
 
-// GET /api/yarn/stock - Compute total received, used, and remaining per yarn
-router.get('/stock', async (req, res, next) => {
-  try {
-    const result = await prisma.$transaction(async (tx) => {
-      const yarns = await tx.yarn.findMany({
-        select: { id: true, hf_code: true, description: true, total_weight: true, available_weight: true },
-        orderBy: { hf_code: 'asc' },
-      });
 
-      return yarns.map(yarn => {
-        const remaining = Number(yarn.available_weight || 0);
-        return {
-          yarnId: yarn.id,
-          hfCode: yarn.hf_code,
-          description: yarn.description,
-          totalReceived: Number(yarn.total_weight || 0),
-          totalUsed: Number(yarn.total_weight || 0) - remaining,
-          remaining,
-        };
-      });
-    });
-
-    res.json(result);
-  } catch (err) { next(err); }
-});
 
 // GET /api/yarn/:id
 router.get('/:id', async (req, res, next) => {
@@ -135,7 +120,6 @@ router.post('/', async (req, res, next) => {
         no_of_bags: Number(no_of_bags),
         bag_weight: BAG_WEIGHT,
         total_weight,
-        available_weight: total_weight,
         rate_per_kg: Number(rate_per_kg),
         total_cost,
         issued_date: new Date(issued_date),
@@ -179,7 +163,6 @@ router.put('/:id', async (req, res, next) => {
         no_of_bags: Number(no_of_bags),
         bag_weight: BAG_WEIGHT,
         total_weight,
-        available_weight: oldYarn?.available_weight != null ? Math.min(Number(oldYarn.available_weight), total_weight) : total_weight,
         rate_per_kg: Number(rate_per_kg),
         total_cost,
         issued_date: new Date(issued_date),
@@ -204,37 +187,6 @@ router.delete('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/yarn/stock/summary — per-HF-code stock summary with knitter
-router.get('/stock/summary', async (req, res, next) => {
-  try {
-    const summary = await prisma.$transaction(async (tx) => {
-      const yarns = await tx.yarn.findMany({
-        include: { millName: true, yarnUsages: { include: { knitting: { include: { knitterName: true } } } } },
-        orderBy: { hf_code: 'asc' },
-      });
-      return yarns.map(y => {
-        const totalUsed = y.yarnUsages.reduce((s, u) => s + u.quantity, 0);
-        const byKnitter = {};
-        for (const u of y.yarnUsages) {
-          const kName = u.knitting?.knitterName?.name || 'Unknown';
-          byKnitter[kName] = (byKnitter[kName] || 0) + u.quantity;
-        }
-        return {
-          id: y.id,
-          hf_code: y.hf_code,
-          description: y.description,
-          delivery_to: y.delivery_to,
-          total_weight: y.total_weight,
-          invoice_no: y.invoice_no,
-          status: y.status,
-          used: totalUsed,
-          remaining: y.total_weight - totalUsed,
-          byKnitter,
-        };
-      });
-    });
-    res.json(summary);
-  } catch (err) { next(err); }
-});
+
 
 module.exports = router;

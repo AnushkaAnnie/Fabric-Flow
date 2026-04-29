@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('../../prisma/generated/client');
 
 // Singleton Prisma client to avoid too many connections
 const globalForPrisma = globalThis;

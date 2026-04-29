@@ -1,39 +1,24 @@
 import api from './axios';
 
-export const knittingAPI = {
-  // Stock
-  getStock: async (knitterId = null) => {
-    const params = new URLSearchParams();
-    if (knitterId) params.append('knitterId', knitterId);
-    return api.get(`/knitting/stock?${params}`);
-  },
+export const getKnitterStock = (knitterId) =>
+  api.get('/knitting/stock', { params: { knitterId } });
 
-  issueYarn: async (data) => {
-    return api.post('/knitting/issue', data);
-  },
+export const issueYarnToKnitter = (data) =>
+  api.post('/knitting/issue', data);
 
-  // Delivery Notes
-  getDeliveryNotes: async () => {
-    return api.get('/knitting/delivery-notes');
-  },
+export const getDeliveryNotes = () =>
+  api.get('/knitting/delivery-notes');
 
-  createDeliveryNote: async (data) => {
-    return api.post('/knitting/delivery-note', data);
-  },
+export const createDeliveryNote = (data) =>
+  api.post('/knitting/delivery-note', data);
 
-  // Knitter Programs
-  getPrograms: async (knitterId = null) => {
-    const params = new URLSearchParams();
-    if (knitterId) params.append('knitterId', knitterId);
-    return api.get(`/knitting/program?${params}`);
-  },
+export const getKnitterPrograms = (knitterId) =>
+  api.get('/knitting/program', { params: { knitterId } });
 
-  createProgram: async (data) => {
-    return api.post('/knitting/program', data);
-  },
+export const createKnitterProgram = (data) =>
+  api.post('/knitting/program', data);
 
-  // Grey Fabric Lots
-  getGreyFabricLots: async () => {
-    return api.get('/knitting/grey-fabric');
-  },
-};
+export const getGreyFabricAvailable = (knitterId) =>
+  api.get('/knitting/grey-fabric', {
+    params: knitterId ? { knitterId } : undefined,
+  });

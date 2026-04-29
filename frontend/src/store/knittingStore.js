@@ -1,122 +1,117 @@
 import { create } from 'zustand';
-import { knittingAPI } from '../api/knitting';
+import * as knittingApi from '../api/knitting';
 
-const useKnittingStore = create((set) => ({
+const useKnittingStore = create((set, get) => ({
   // Stock
-  stock: [],
+  stockList: [],
   stockLoading: false,
   stockError: null,
 
-  fetchStock: async (knitterId = null) => {
+  fetchStock: async (knitterId) => {
     set({ stockLoading: true, stockError: null });
     try {
-      const response = await knittingAPI.getStock(knitterId);
-      set({ stock: response.data, stockLoading: false });
-    } catch (error) {
-      set({ 
-        stockError: error.response?.data?.message || 'Failed to fetch stock',
+      const res = await knittingApi.getKnitterStock(knitterId);
+      set({ stockList: res.data, stockLoading: false });
+    } catch (err) {
+      set({
+        stockError: err.response?.data?.message || 'Failed to fetch stock',
         stockLoading: false,
       });
     }
   },
 
-  issueYarn: async (data) => {
+  issueYarn: async (payload) => {
     try {
-      const response = await knittingAPI.issueYarn(data);
-      // Refresh stock after successful issue
-      await set((state) => state.fetchStock());
-      return { success: true, data: response.data };
-    } catch (error) {
+      await knittingApi.issueYarnToKnitter(payload);
+      await get().fetchStock(payload.knitterId);
+      return { success: true };
+    } catch (err) {
       return {
         success: false,
-        message: error.response?.data?.message || 'Failed to issue yarn',
+        message: err.response?.data?.message || 'Issue failed',
       };
     }
   },
 
   // Delivery Notes
   deliveryNotes: [],
-  deliveryNotesLoading: false,
-  deliveryNotesError: null,
+  deliveryNoteLoading: false,
+  deliveryNoteError: null,
 
   fetchDeliveryNotes: async () => {
-    set({ deliveryNotesLoading: true, deliveryNotesError: null });
+    set({ deliveryNoteLoading: true, deliveryNoteError: null });
     try {
-      const response = await knittingAPI.getDeliveryNotes();
-      set({ deliveryNotes: response.data, deliveryNotesLoading: false });
-    } catch (error) {
+      const res = await knittingApi.getDeliveryNotes();
+      set({ deliveryNotes: res.data, deliveryNoteLoading: false });
+    } catch (err) {
       set({
-        deliveryNotesError: error.response?.data?.message || 'Failed to fetch delivery notes',
-        deliveryNotesLoading: false,
+        deliveryNoteError: err.response?.data?.message || 'Failed to fetch delivery notes',
+        deliveryNoteLoading: false,
       });
     }
   },
 
-  createDeliveryNote: async (data) => {
+  createDeliveryNote: async (payload) => {
     try {
-      const response = await knittingAPI.createDeliveryNote(data);
-      // Refresh lists after successful creation
-      await set((state) => {
-        state.fetchDeliveryNotes();
-        state.fetchStock();
-      });
-      return { success: true, data: response.data };
-    } catch (error) {
+      await knittingApi.createDeliveryNote(payload);
+      await get().fetchDeliveryNotes();
+      await get().fetchStock(payload.sourceKnitterId);
+      await get().fetchStock(payload.destKnitterId);
+      return { success: true };
+    } catch (err) {
       return {
         success: false,
-        message: error.response?.data?.message || 'Failed to create delivery note',
+        message: err.response?.data?.message || 'Transfer failed',
       };
     }
   },
 
-  // Programs (Knitter Programs)
+  // Knitter Program
   programs: [],
-  programsLoading: false,
-  programsError: null,
+  programLoading: false,
+  programError: null,
 
-  fetchPrograms: async (knitterId = null) => {
-    set({ programsLoading: true, programsError: null });
+  fetchPrograms: async (knitterId) => {
+    set({ programLoading: true, programError: null });
     try {
-      const response = await knittingAPI.getPrograms(knitterId);
-      set({ programs: response.data, programsLoading: false });
-    } catch (error) {
+      const res = await knittingApi.getKnitterPrograms(knitterId);
+      set({ programs: res.data, programLoading: false });
+    } catch (err) {
       set({
-        programsError: error.response?.data?.message || 'Failed to fetch programs',
-        programsLoading: false,
+        programError: err.response?.data?.message || 'Failed to fetch programs',
+        programLoading: false,
       });
     }
   },
 
-  createProgram: async (data) => {
+  createProgram: async (payload) => {
     try {
-      const response = await knittingAPI.createProgram(data);
-      // Refresh lists after successful creation
-      await set((state) => {
-        state.fetchPrograms();
-        state.fetchStock();
-      });
-      return { success: true, data: response.data };
-    } catch (error) {
+      await knittingApi.createKnitterProgram(payload);
+      await get().fetchPrograms(payload.knitterId);
+      await get().fetchStock(payload.knitterId);
+      await get().fetchGreyFabric();
+      return { success: true };
+    } catch (err) {
       return {
         success: false,
-        message: error.response?.data?.message || 'Failed to create program',
+        message: err.response?.data?.message || 'Program creation failed',
       };
     }
   },
 
-  // Grey Fabric Lots
-  greyFabricLots: [],
+  // Grey Fabric
+  greyFabricList: [],
   greyFabricLoading: false,
   greyFabricError: null,
 
-  fetchGreyFabricLots: async () => {
+  fetchGreyFabric: async () => {
     set({ greyFabricLoading: true, greyFabricError: null });
     try {
-      const response = await knittingAPI.getGreyFabricLots();
-      set({ greyFabricLots: response.data, greyFabricLoading: false });
-    } catch (error) {
+      const res = await knittingApi.getGreyFabricAvailable();
+      set({ greyFabricList: res.data, greyFabricLoading: false });
+    } catch (err) {
       set({
-        greyFabricError: error.response?.data?.message || 'Failed to fetch grey fabric lots',
+        greyFabricError: err.response?.data?.message || 'Failed to fetch grey fabric',
         greyFabricLoading: false,
       });
     }

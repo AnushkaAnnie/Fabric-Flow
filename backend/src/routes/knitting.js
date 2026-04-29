@@ -5,333 +5,6 @@ const auth = require('../middleware/auth');
 const router = express.Router();
 router.use(auth);
 
-const { Prisma } = require('@prisma/client');
-
-const toDecimal = (value) => new Prisma.Decimal(String(Number(value || 0)));
-
-const STOCK_INCLUDE = {
-  knitterName: true,
-  yarn: { include: { millName: true } },
-};
-
-const PROGRAM_INCLUDE = {
-  knitterName: true,
-  yarn: { include: { millName: true } },
-  greyFabricLot: true,
-};
-
-const GREY_FABRIC_INCLUDE = {
-  knitterProgram: {
-    include: {
-      knitterName: true,
-      yarn: { include: { millName: true } },
-    },
-  },
-};
-
-router.get('/stock', async (req, res, next) => {
-  try {
-    const { knitterId } = req.query;
-    const where = {
-      ...(knitterId ? { knitterId: Number(knitterId) } : {}),
-      remaining_weight: { gt: 0 },
-    };
-
-    const stocks = await prisma.knitterStock.findMany({
-      where,
-      include: STOCK_INCLUDE,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    });
-
-    res.json(stocks.map((stock) => ({
-      ...stock,
-      received_weight: Number(stock.received_weight),
-      remaining_weight: Number(stock.remaining_weight),
-    })));
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/issue', async (req, res, next) => {
-  try {
-    const { knitterId, yarnId, received_weight } = req.body;
-    const knitterIdNum = Number(knitterId);
-    const yarnIdNum = Number(yarnId);
-    const quantity = Number(received_weight);
-
-    if (!knitterIdNum || !yarnIdNum || !(quantity > 0)) {
-      return res.status(400).json({ message: 'knitterId, yarnId, and received_weight are required.' });
-    }
-
-    const result = await prisma.$transaction(async (tx) => {
-      const yarn = await tx.yarn.findUnique({ where: { id: yarnIdNum } });
-      if (!yarn) {
-        throw Object.assign(new Error('Yarn not found.'), { statusCode: 404 });
-      }
-
-      const updatedYarn = await tx.yarn.updateMany({
-        where: { id: yarnIdNum, available_weight: { gte: quantity } },
-        data: { available_weight: { decrement: toDecimal(quantity) } },
-      });
-
-      if (updatedYarn.count === 0) {
-        throw Object.assign(new Error('Insufficient yarn available weight.'), { statusCode: 400 });
-      }
-
-      const stock = await tx.knitterStock.create({
-        data: {
-          knitterId: knitterIdNum,
-          yarnId: yarnIdNum,
-          received_weight: toDecimal(quantity),
-          remaining_weight: toDecimal(quantity),
-        },
-        include: STOCK_INCLUDE,
-      });
-
-      return stock;
-    });
-
-    res.status(201).json({
-      ...result,
-      received_weight: Number(result.received_weight),
-      remaining_weight: Number(result.remaining_weight),
-    });
-  } catch (err) {
-    if (err?.statusCode) return res.status(err.statusCode).json({ message: err.message });
-    next(err);
-  }
-});
-
-router.get('/delivery-notes', async (req, res, next) => {
-  try {
-    const deliveryNotes = await prisma.deliveryNote.findMany({
-      include: {
-        sourceKnitter: true,
-        destKnitter: true,
-        yarn: { include: { millName: true } },
-      },
-      orderBy: { transferDate: 'desc' },
-    });
-
-    res.json(deliveryNotes.map((note) => ({
-      ...note,
-      quantity: Number(note.quantity),
-    })));
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/delivery-note', async (req, res, next) => {
-  try {
-    const { sourceKnitterId, destKnitterId, yarnId, quantity } = req.body;
-    const sourceId = Number(sourceKnitterId);
-    const destId = Number(destKnitterId);
-    const yarnIdNum = Number(yarnId);
-    const transferQuantity = Number(quantity);
-
-    if (!sourceId || !destId || !yarnIdNum || !(transferQuantity > 0)) {
-      return res.status(400).json({ message: 'sourceKnitterId, destKnitterId, yarnId, and quantity are required.' });
-    }
-
-    const record = await prisma.$transaction(async (tx) => {
-      const sourceStock = await tx.knitterStock.findFirst({
-        where: {
-          knitterId: sourceId,
-          yarnId: yarnIdNum,
-          remaining_weight: { gte: transferQuantity },
-        },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      });
-
-      if (!sourceStock) {
-        throw Object.assign(new Error('Source knitter does not have enough remaining stock.'), { statusCode: 400 });
-      }
-
-      await tx.knitterStock.update({
-        where: { id: sourceStock.id },
-        data: {
-          remaining_weight: { decrement: toDecimal(transferQuantity) },
-        },
-      });
-
-      const destStock = await tx.knitterStock.findFirst({
-        where: {
-          knitterId: destId,
-          yarnId: yarnIdNum,
-        },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      });
-
-      if (destStock) {
-        await tx.knitterStock.update({
-          where: { id: destStock.id },
-          data: {
-            received_weight: { increment: toDecimal(transferQuantity) },
-            remaining_weight: { increment: toDecimal(transferQuantity) },
-          },
-        });
-      } else {
-        await tx.knitterStock.create({
-          data: {
-            knitterId: destId,
-            yarnId: yarnIdNum,
-            received_weight: toDecimal(transferQuantity),
-            remaining_weight: toDecimal(transferQuantity),
-          },
-        });
-      }
-
-      const deliveryNote = await tx.deliveryNote.create({
-        data: {
-          sourceKnitterId: sourceId,
-          destKnitterId: destId,
-          yarnId: yarnIdNum,
-          quantity: toDecimal(transferQuantity),
-        },
-        include: {
-          sourceKnitter: true,
-          destKnitter: true,
-          yarn: { include: { millName: true } },
-        },
-      });
-
-      return deliveryNote;
-    });
-
-    res.status(201).json({
-      ...record,
-      quantity: Number(record.quantity),
-    });
-  } catch (err) {
-    if (err?.statusCode) return res.status(err.statusCode).json({ message: err.message });
-    next(err);
-  }
-});
-
-router.get('/program', async (req, res, next) => {
-  try {
-    const { knitterId } = req.query;
-    const where = knitterId ? { knitterId: Number(knitterId) } : {};
-
-    const programs = await prisma.knitterProgram.findMany({
-      where,
-      include: PROGRAM_INCLUDE,
-      orderBy: { productionDate: 'desc' },
-    });
-
-    res.json(programs.map((program) => ({
-      ...program,
-      quantity_used: Number(program.quantity_used),
-      grey_weight: Number(program.grey_weight),
-      loop_length: program.loop_length == null ? null : Number(program.loop_length),
-    })));
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/program', async (req, res, next) => {
-  try {
-    const { knitterId, yarnId, quantity_used, manual_grey_weight, number_of_rolls, gauge, loop_length, productionDate } = req.body;
-    const knitterIdNum = Number(knitterId);
-    const yarnIdNum = Number(yarnId);
-    const usedQuantity = Number(quantity_used);
-    const greyWeight = Number(manual_grey_weight);
-    const rolls = Number(number_of_rolls || 0);
-    const loopLength = loop_length === '' || loop_length == null ? null : Number(loop_length);
-
-    if (!knitterIdNum || !yarnIdNum || !(usedQuantity > 0) || !(greyWeight >= 0)) {
-      return res.status(400).json({ message: 'knitterId, yarnId, quantity_used, and manual_grey_weight are required.' });
-    }
-
-    const result = await prisma.$transaction(async (tx) => {
-      const stock = await tx.knitterStock.findFirst({
-        where: {
-          knitterId: knitterIdNum,
-          yarnId: yarnIdNum,
-          remaining_weight: { gte: usedQuantity },
-        },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      });
-
-      if (!stock) {
-        throw Object.assign(new Error('Insufficient knitter stock for this program.'), { statusCode: 400 });
-      }
-
-      await tx.knitterStock.update({
-        where: { id: stock.id },
-        data: {
-          remaining_weight: { decrement: toDecimal(usedQuantity) },
-        },
-      });
-
-      const program = await tx.knitterProgram.create({
-        data: {
-          knitterId: knitterIdNum,
-          yarnId: yarnIdNum,
-          quantity_used: toDecimal(usedQuantity),
-          grey_weight: toDecimal(greyWeight),
-          number_of_rolls: rolls,
-          gauge: gauge || null,
-          loop_length: loopLength == null ? null : toDecimal(loopLength),
-          productionDate: productionDate ? new Date(productionDate) : new Date(),
-        },
-        include: PROGRAM_INCLUDE,
-      });
-
-      const greyFabricLot = await tx.greyFabricLot.create({
-        data: {
-          knitterProgramId: program.id,
-          grey_weight: toDecimal(greyWeight),
-          status: 'AVAILABLE',
-        },
-        include: GREY_FABRIC_INCLUDE,
-      });
-
-      return { ...program, greyFabricLot };
-    });
-
-    res.status(201).json({
-      ...result,
-      quantity_used: Number(result.quantity_used),
-      grey_weight: Number(result.grey_weight),
-      loop_length: result.loop_length == null ? null : Number(result.loop_length),
-      greyFabricLot: result.greyFabricLot ? {
-        ...result.greyFabricLot,
-        grey_weight: Number(result.greyFabricLot.grey_weight),
-      } : null,
-    });
-  } catch (err) {
-    if (err?.statusCode) return res.status(err.statusCode).json({ message: err.message });
-    next(err);
-  }
-});
-
-router.get('/grey-fabric', async (req, res, next) => {
-  try {
-    const lots = await prisma.greyFabricLot.findMany({
-      where: { status: 'AVAILABLE' },
-      include: GREY_FABRIC_INCLUDE,
-      orderBy: { createdAt: 'desc' },
-    });
-
-    res.json(lots.map((lot) => ({
-      ...lot,
-      grey_weight: Number(lot.grey_weight),
-      knitterProgram: lot.knitterProgram ? {
-        ...lot.knitterProgram,
-        quantity_used: Number(lot.knitterProgram.quantity_used),
-        grey_weight: Number(lot.knitterProgram.grey_weight),
-        loop_length: lot.knitterProgram.loop_length == null ? null : Number(lot.knitterProgram.loop_length),
-      } : null,
-    })));
-  } catch (err) {
-    next(err);
-  }
-});
-
 const INCLUDE = {
   knitterName: true,
   fabricDescription: true,
@@ -372,19 +45,8 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// GET /api/knitting/:id
-router.get('/:id', async (req, res, next) => {
-  try {
-    const record = await prisma.knitting.findUnique({
-      where: { id: Number(req.params.id) },
-      include: INCLUDE,
-    });
-    if (!record) return res.status(404).json({ message: 'Knitting record not found.' });
-    res.json(record);
-  } catch (err) {
-    next(err);
-  }
-});
+// GET /api/knitting/:id  — IMPORTANT: kept AFTER all named routes to avoid shadowing
+// (moved below — see end of named routes section)
 
 // ─────────────────────────────────────────────────────
 // Helper: Recalculate knitter yarn balance
@@ -856,6 +518,45 @@ router.get('/yarn-remaining/:hf_code', async (req, res, next) => {
   }
 });
 
+// GET /api/knitting/grey-fabric — list available grey fabric lots (optional ?knitterId=)
+router.get('/grey-fabric', async (req, res, next) => {
+  try {
+    const { knitterId } = req.query;
+    const where = { status: 'AVAILABLE' };
+    if (knitterId) {
+      where.knitterProgram = { knitterId: parseInt(knitterId, 10) };
+    }
+    const lots = await prisma.greyFabricLot.findMany({
+      where,
+      include: {
+        knitterProgram: {
+          include: { yarn: true, knitterName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(lots);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/knitting/:id — placed AFTER all named routes so static paths take priority
+router.get('/:id', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: 'Invalid id.' });
+    const record = await prisma.knitting.findUnique({
+      where: { id },
+      include: INCLUDE,
+    });
+    if (!record) return res.status(404).json({ message: 'Knitting record not found.' });
+    res.json(record);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PUT /api/knitting/:id/grey-fabric — Update grey fabric specs
 router.put('/:id/grey-fabric', async (req, res, next) => {
   try {
@@ -914,6 +615,62 @@ router.put('/:id/grey-fabric', async (req, res, next) => {
       message: 'Grey fabric specs updated successfully.',
       data: greyFabric,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/knitting/stock?knitterId=<id> — yarn stock for a knitter
+router.get('/stock', async (req, res, next) => {
+  try {
+    const { knitterId } = req.query;
+    if (!knitterId) return res.status(400).json({ message: 'knitterId is required.' });
+    const stocks = await prisma.knitterStock.findMany({
+      where: { knitterId: parseInt(knitterId, 10) },
+      include: { yarn: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(stocks);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/knitting/issue — receive yarn from mill into knitter stock
+router.post('/issue', async (req, res, next) => {
+  try {
+    const { knitterId, yarnId, received_weight } = req.body;
+    if (!knitterId || !yarnId || !received_weight) {
+      return res.status(400).json({ message: 'knitterId, yarnId and received_weight are required.' });
+    }
+
+    const existing = await prisma.knitterStock.findFirst({
+      where: { knitterId: parseInt(knitterId, 10), yarnId: parseInt(yarnId, 10) },
+    });
+
+    let stock;
+    if (existing) {
+      stock = await prisma.knitterStock.update({
+        where: { id: existing.id },
+        data: {
+          received_weight: { increment: parseFloat(received_weight) },
+          remaining_weight: { increment: parseFloat(received_weight) },
+        },
+        include: { yarn: true },
+      });
+    } else {
+      stock = await prisma.knitterStock.create({
+        data: {
+          knitterId: parseInt(knitterId, 10),
+          yarnId: parseInt(yarnId, 10),
+          received_weight: parseFloat(received_weight),
+          remaining_weight: parseFloat(received_weight),
+        },
+        include: { yarn: true },
+      });
+    }
+
+    res.status(201).json(stock);
   } catch (err) {
     next(err);
   }

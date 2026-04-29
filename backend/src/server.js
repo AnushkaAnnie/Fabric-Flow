@@ -8,7 +8,7 @@ const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth');
 const masterRoutes = require('./routes/master');
 const yarnRoutes = require('./routes/yarn');
-const yarnReceiptsRoutes = require('./routes/yarn-receipts');
+
 const knittingRoutes = require('./routes/knitting');
 const dyeingRoutes = require('./routes/dyeing');
 const dyeingOrdersRoutes = require('./routes/dyeing-orders');
@@ -45,7 +45,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/master', masterRoutes);
 app.use('/api/yarn', yarnRoutes);
-app.use('/api/yarn-receipts', yarnReceiptsRoutes);
+
 app.use('/api/knitting', knittingRoutes);
 app.use('/api/dyeing', dyeingRoutes);
 app.use('/api/dyeing-orders', dyeingOrdersRoutes);

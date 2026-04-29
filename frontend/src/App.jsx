@@ -7,8 +7,6 @@ import Layout from './components/Layout/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Yarn from './pages/Yarn';
-import YarnStockDashboard from './pages/YarnStockDashboard';
-import YarnInwardEntry from './pages/YarnInwardEntry';
 import FabricPurchase from './pages/FabricPurchase';
 import Knitting from './pages/Knitting';
 import Dyeing from './pages/Dyeing';
@@ -27,8 +25,6 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/yarn" element={<Yarn />} />
-            <Route path="/yarn-stock" element={<YarnStockDashboard />} />
-            <Route path="/yarn-inward" element={<YarnInwardEntry />} />
             <Route path="/fabric-purchase" element={<FabricPurchase />} />
             <Route path="/knitting" element={<Knitting />} />
             <Route path="/dyeing" element={<Dyeing />} />
