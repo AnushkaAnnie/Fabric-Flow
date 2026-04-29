@@ -54,23 +54,14 @@ router.get('/list/hf-codes', async (req, res, next) => {
   try {
     const result = await prisma.$transaction(async (tx) => {
       // Two queries total instead of N+1
-      const [yarns, usageGroups] = await Promise.all([
-        tx.yarn.findMany({
-          select: { id: true, hf_code: true, description: true, total_weight: true },
-          orderBy: { hf_code: 'asc' },
-        }),
-        tx.knittingYarnUsage.groupBy({
-          by: ['yarn_id'],
-          _sum: { quantity: true },
-        }),
-      ]);
-
-      // Build a lookup map: yarn_id → total used
-      const usedMap = new Map(usageGroups.map(g => [g.yarn_id, g._sum.quantity || 0]));
+      const yarns = await tx.yarn.findMany({
+        select: { id: true, hf_code: true, description: true, total_weight: true, available_weight: true },
+        orderBy: { hf_code: 'asc' },
+      });
 
       return yarns.map(y => {
-        const used = usedMap.get(y.id) || 0;
-        return { ...y, used, remaining: y.total_weight - used };
+        const remaining = Number(y.available_weight || 0);
+        return { ...y, used: Number(y.total_weight || 0) - remaining, remaining };
       });
     });
     res.json(result);
@@ -82,40 +73,19 @@ router.get('/list/hf-codes', async (req, res, next) => {
 router.get('/stock', async (req, res, next) => {
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // Fetch all yarns
       const yarns = await tx.yarn.findMany({
-        select: { id: true, hf_code: true, description: true },
+        select: { id: true, hf_code: true, description: true, total_weight: true, available_weight: true },
         orderBy: { hf_code: 'asc' },
       });
 
-      // Fetch all yarn receipts grouped by yarn_id
-      const receipts = await tx.yarnReceipt.groupBy({
-        by: ['yarnId'],
-        _sum: { quantity: true },
-      });
-
-      // Fetch all yarn usages grouped by yarn_id
-      const usages = await tx.knittingYarnUsage.groupBy({
-        by: ['yarn_id'],
-        _sum: { quantity: true },
-      });
-
-      // Build lookup maps
-      const receiptMap = new Map(receipts.map(r => [r.yarnId, r._sum.quantity || 0]));
-      const usageMap = new Map(usages.map(u => [u.yarn_id, u._sum.quantity || 0]));
-
-      // Compute stock for each yarn
       return yarns.map(yarn => {
-        const totalReceived = receiptMap.get(yarn.id) || 0;
-        const totalUsed = usageMap.get(yarn.id) || 0;
-        const remaining = totalReceived - totalUsed;
-
+        const remaining = Number(yarn.available_weight || 0);
         return {
           yarnId: yarn.id,
           hfCode: yarn.hf_code,
           description: yarn.description,
-          totalReceived,
-          totalUsed,
+          totalReceived: Number(yarn.total_weight || 0),
+          totalUsed: Number(yarn.total_weight || 0) - remaining,
           remaining,
         };
       });
@@ -165,6 +135,7 @@ router.post('/', async (req, res, next) => {
         no_of_bags: Number(no_of_bags),
         bag_weight: BAG_WEIGHT,
         total_weight,
+        available_weight: total_weight,
         rate_per_kg: Number(rate_per_kg),
         total_cost,
         issued_date: new Date(issued_date),
@@ -208,6 +179,7 @@ router.put('/:id', async (req, res, next) => {
         no_of_bags: Number(no_of_bags),
         bag_weight: BAG_WEIGHT,
         total_weight,
+        available_weight: oldYarn?.available_weight != null ? Math.min(Number(oldYarn.available_weight), total_weight) : total_weight,
         rate_per_kg: Number(rate_per_kg),
         total_cost,
         issued_date: new Date(issued_date),
