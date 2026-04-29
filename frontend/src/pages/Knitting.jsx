@@ -1,590 +1,891 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Box, Typography, Button, Grid, Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Chip, Divider, IconButton, Paper, Alert, Tooltip, Table,
-  TableHead, TableBody, TableRow, TableCell, Collapse, Autocomplete
+  Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions,
+  TextField, Paper, Alert, Snackbar, Tab, Tabs, Table, TableHead, TableBody, TableRow, TableCell,
+  TableContainer, CircularProgress, Autocomplete, Chip,
 } from '@mui/material';
-import { Plus, Trash2, ChevronDown, ChevronRight, PlusCircle } from 'lucide-react';
-import DataTable from '../components/common/DataTable';
-import SmartDropdown from '../components/common/SmartDropdown';
+import { Plus } from 'lucide-react';
+import useKnittingStore from '../store/knittingStore';
 import api from '../api/axios';
 
-const emptyYarnUsage = () => ({ hf_code: '', yarn_id: '', remaining: null, total: null });
-const emptyLotEntry = () => ({ colour_id: '', weight: '' });
-const emptyLot = () => ({ lot_no: '', job_work_no: '', no_of_rolls: '', dyer_name_id: '', entries: [emptyLotEntry()] });
+// ============================================================================
+// Tab Panel Component
+// ============================================================================
+function TabPanel(props) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`knitting-tabpanel-${index}`}
+      aria-labelledby={`knitting-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    </div>
+  );
+}
 
-const emptyForm = () => ({
-  dc_no: '', knitter_name_id: '', total_yarn_qty: '', loop_length: '', dia: '', count: '', gauge: '',
-  date_given: new Date().toISOString().split('T')[0],
-  fabric_description_id: '', grey_fabric_weight: '', received_weight: '',
-  other_yarn_type: '', other_yarn_percentage: '',
-  date: new Date().toISOString().split('T')[0],
-  yarnUsages: [emptyYarnUsage()],
-  lots: [],
-  greyFabric: {
-    description: '',
-    gauge: '',
-    loopLength: '',
-    diameter: '',
-    gsm: '',
-    quantity: '',
-  },
-});
+// ============================================================================
+// Stock Tab - Issue Yarn to Knitter
+// ============================================================================
+function StockTab() {
+  const store = useKnittingStore();
+  const [knitters, setKnitters] = useState([]);
+  const [yarns, setYarns] = useState([]);
+  const [selectedKnitterId, setSelectedKnitterId] = useState(null);
+  const [issueModalOpen, setIssueModalOpen] = useState(false);
+  const [issueForm, setIssueForm] = useState({ knitterId: '', yarnId: '', received_weight: '' });
+  const [issueLoading, setIssueLoading] = useState(false);
+  const [issueError, setIssueError] = useState('');
+  const [issueSuccess, setIssueSuccess] = useState(false);
 
-const Knitting = () => {
-  const [data, setData] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(50);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState(emptyForm());
-  const [hfCodeOptions, setHfCodeOptions] = useState([]);
-  const [expandedRows, setExpandedRows] = useState({});
+  useEffect(() => {
+    store.fetchStock(selectedKnitterId);
+  }, [selectedKnitterId, store]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get(`/knitting?page=${page}&limit=${limit}&search=${search}`);
-      setData(res.data.data);
-      setTotal(res.data.total);
-    } catch (err) { console.error(err); }
-    setLoading(false);
-  }, [page, limit, search]);
-
-  const fetchHfOptions = useCallback(async () => {
-    try {
-      const res = await api.get('/yarn/list/hf-codes');
-      setHfCodeOptions(res.data);
-    } catch (err) { console.error(err); }
+  useEffect(() => {
+    Promise.all([
+      api.get('/knitter-names').then(r => setKnitters(r.data)),
+      api.get('/yarn').then(r => setYarns(r.data)),
+    ]).catch(err => console.error('Failed to load master data:', err));
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { if (modalOpen) fetchHfOptions(); }, [modalOpen, fetchHfOptions]);
-
-  // When an HF code is selected in a yarn usage row, auto-fill count and fetch remaining
-  const handleHfCodeChange = async (idx, hfCode) => {
-    const opt = hfCodeOptions.find(o => o.hf_code === hfCode);
-    const newUsages = [...formData.yarnUsages];
-    newUsages[idx] = {
-      ...newUsages[idx],
-      hf_code: hfCode,
-      yarn_id: opt?.id || '',
-      remaining: opt ? opt.remaining : null,
-      total: opt ? opt.total_weight : null,
-    };
-    setFormData(prev => ({
-      ...prev,
-      yarnUsages: newUsages,
-      count: opt ? (prev.count || '') : prev.count,
-    }));
-
-    // Auto-fill count from first HF code
-    if (idx === 0 && opt) {
-      try {
-        const res = await api.get(`/yarn/hf/${hfCode}`);
-        if (res.data?.count) setFormData(prev => ({ ...prev, count: res.data.count }));
-      } catch {}
+  const handleIssueSubmit = async () => {
+    if (!issueForm.knitterId || !issueForm.yarnId || !issueForm.received_weight) {
+      setIssueError('All fields are required');
+      return;
     }
-  };
 
-  const updateUsage = (idx, field, val) => {
-    const newUsages = [...formData.yarnUsages];
-    newUsages[idx] = { ...newUsages[idx], [field]: val };
-    setFormData(prev => ({ ...prev, yarnUsages: newUsages }));
-  };
-
-  const addUsage = () => setFormData(prev => ({ ...prev, yarnUsages: [...prev.yarnUsages, emptyYarnUsage()] }));
-  const removeUsage = (idx) => setFormData(prev => ({ ...prev, yarnUsages: prev.yarnUsages.filter((_, i) => i !== idx) }));
-
-  const addLot = () => setFormData(prev => ({ ...prev, lots: [...prev.lots, emptyLot()] }));
-  const removeLot = (idx) => setFormData(prev => ({ ...prev, lots: prev.lots.filter((_, i) => i !== idx) }));
-
-  const updateLot = (idx, field, val) => {
-    const newLots = [...formData.lots];
-    newLots[idx] = { ...newLots[idx], [field]: val };
-    setFormData(prev => ({ ...prev, lots: newLots }));
-  };
-
-  const addLotEntry = (lotIdx) => {
-    const newLots = [...formData.lots];
-    newLots[lotIdx] = { ...newLots[lotIdx], entries: [...newLots[lotIdx].entries, emptyLotEntry()] };
-    setFormData(prev => ({ ...prev, lots: newLots }));
-  };
-
-  const removeLotEntry = (lotIdx, entryIdx) => {
-    const newLots = [...formData.lots];
-    newLots[lotIdx] = { ...newLots[lotIdx], entries: newLots[lotIdx].entries.filter((_, i) => i !== entryIdx) };
-    setFormData(prev => ({ ...prev, lots: newLots }));
-  };
-
-  const updateLotEntry = (lotIdx, entryIdx, field, val) => {
-    const newLots = [...formData.lots];
-    const newEntries = [...newLots[lotIdx].entries];
-    newEntries[entryIdx] = { ...newEntries[entryIdx], [field]: val };
-    newLots[lotIdx] = { ...newLots[lotIdx], entries: newEntries };
-    setFormData(prev => ({ ...prev, lots: newLots }));
-  };
-
-  const handleSave = async () => {
-    try {
-      const payload = {
-        ...formData,
-        hf_code: formData.yarnUsages[0]?.hf_code || '',
-      };
-      if (editingId) {
-        await api.put(`/knitting/${editingId}`, payload);
-      } else {
-        await api.post('/knitting', payload);
-      }
-      setModalOpen(false);
-      fetchData();
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || 'Error saving data');
-    }
-  };
-
-  const handleEdit = (row) => {
-    setFormData({
-      dc_no: row.dc_no || '',
-      knitter_name_id: row.knitter_name_id || '',
-      loop_length: row.loop_length || '',
-      dia: row.dia || '',
-      count: row.count || '',
-      gauge: row.gauge || '',
-      date_given: new Date(row.date_given).toISOString().split('T')[0],
-      fabric_description_id: row.fabric_description_id || '',
-      grey_fabric_weight: row.grey_fabric_weight || '',
-      received_weight: row.received_weight || '',
-      other_yarn_type: row.other_yarn_type || '',
-      other_yarn_percentage: row.other_yarn_percentage || '',
-      date: new Date(row.date).toISOString().split('T')[0],
-      total_yarn_qty: row.total_yarn_qty || '',
-      yarnUsages: (row.yarnUsages || []).map(u => ({
-        hf_code: u.hf_code,
-        yarn_id: u.yarn_id,
-        quantity: u.quantity,
-        remaining: null,
-        total: null,
-      })),
-      lots: (row.lots || []).map(lot => ({
-        lot_no: lot.lot_no,
-        job_work_no: lot.job_work_no || '',
-        no_of_rolls: lot.no_of_rolls ?? row.no_of_rolls ?? '',
-        dyer_name_id: lot.dyer_name_id,
-        entries: (lot.entries || []).map(e => ({
-          colour_id: e.colour_id,
-          weight: e.weight,
-        })),
-      })),
-      greyFabric: row.greyFabric ? {
-        description: row.greyFabric.description || '',
-        gauge: row.greyFabric.gauge || '',
-        loopLength: row.greyFabric.loopLength || '',
-        diameter: row.greyFabric.diameter || '',
-        gsm: row.greyFabric.gsm || '',
-        quantity: row.greyFabric.quantity || '',
-      } : {
-        description: '',
-        gauge: '',
-        loopLength: '',
-        diameter: '',
-        gsm: '',
-        quantity: '',
-      },
+    setIssueLoading(true);
+    setIssueError('');
+    const result = await store.issueYarn({
+      knitterId: Number(issueForm.knitterId),
+      yarnId: Number(issueForm.yarnId),
+      received_weight: Number(issueForm.received_weight),
     });
-    setEditingId(row.id);
-    setModalOpen(true);
-  };
 
-  const handleDelete = async (row) => {
-    try {
-      await api.delete(`/knitting/${row.id}`);
-      fetchData();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Error deleting record.');
+    if (result.success) {
+      setIssueSuccess(true);
+      setIssueForm({ knitterId: '', yarnId: '', received_weight: '' });
+      setIssueModalOpen(false);
+      setTimeout(() => setIssueSuccess(false), 3000);
+    } else {
+      setIssueError(result.message);
     }
+    setIssueLoading(false);
   };
 
-  const toggleRow = (id) => setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
-
-  const columns = [
-    {
-      field: 'expand', headerName: '',
-      renderCell: (row) => (
-        <IconButton size="small" onClick={() => toggleRow(row.id)}>
-          {expandedRows[row.id] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        </IconButton>
-      )
-    },
-    { field: 'hf_code', headerName: 'HF Code(s)',
-      renderCell: (row) => (row.yarnUsages || []).map(u => u.hf_code).join(', ') || row.hf_code
-    },
-    { field: 'dc_no', headerName: 'DC No' },
-    { field: 'knitterName', headerName: 'Knitter', renderCell: (row) => row.knitterName?.name },
-    { field: 'fabricDescription', headerName: 'Description', renderCell: (row) => row.fabricDescription?.name || '—' },
-    { field: 'loop_length', headerName: 'Loop Length' },
-    { field: 'dia', headerName: 'Dia' },
-    { field: 'count', headerName: 'Count' },
-    { field: 'gauge', headerName: 'Gauge' },
-    { field: 'grey_fabric_weight', headerName: 'Grey Wt (kg)' },
-    { field: 'received_weight', headerName: 'Received Wt (kg)', renderCell: (row) => row.received_weight != null ? row.received_weight : '—' },
-    {
-      field: 'lots', headerName: 'Lots',
-      renderCell: (row) => (row.lots || []).length > 0
-        ? <Chip label={`${row.lots.length} lot(s)`} size="small" color="info" variant="outlined" />
-        : <Chip label="None" size="small" variant="outlined" />
-    },
-    {
-      field: 'status', headerName: 'Status',
-      renderCell: (row) => {
-        const isComplete = Number(row.grey_fabric_weight) > 0;
-        return <Chip label={isComplete ? 'Completed' : 'Pending'} color={isComplete ? 'success' : 'warning'} size="small" variant="outlined" />;
-      }
-    },
-    { field: 'date_given', headerName: 'Date Given', renderCell: (row) => new Date(row.date_given).toLocaleDateString() },
-    { field: 'date', headerName: 'Date Received', renderCell: (row) => new Date(row.date).toLocaleDateString() },
+  const stockColumns = [
+    { field: 'knitterName.name', headerName: 'Knitter' },
+    { field: 'yarn.hf_code', headerName: 'HF Code' },
+    { field: 'yarn.description', headerName: 'Description' },
+    { field: 'received_weight', headerName: 'Received Weight (kg)' },
+    { field: 'remaining_weight', headerName: 'Remaining Weight (kg)' },
   ];
-
-  // Custom table expansion row rendering (injected after each row)
-  const renderExpanded = (row) => {
-    if (!expandedRows[row.id]) return null;
-    return (
-      <Box sx={{ px: 3, py: 1.5, bgcolor: 'background.default', borderTop: '1px solid', borderColor: 'divider' }}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <Typography variant="subtitle2" gutterBottom>Yarn HF Code Usages</Typography>
-            <Typography variant="body2" sx={{ mb: 1 }}>Total Yarn Given: <strong>{row.total_yarn_qty} kg</strong></Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {(row.yarnUsages || []).map((u, i) => (
-                <Chip key={i} label={u.hf_code} size="small" variant="outlined" />
-              ))}
-            </Box>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Typography variant="subtitle2" gutterBottom>Dyeing Lots</Typography>
-            {(row.lots || []).length === 0 ? <Typography variant="body2" color="text.secondary">No lots assigned.</Typography> : (
-              row.lots.map((lot, li) => (
-                <Box key={li} sx={{ mb: 1, p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                  <Typography variant="body2" fontWeight={600}>Lot: {lot.lot_no} {lot.job_work_no ? `(Job Work: ${lot.job_work_no}) ` : ''}→ {lot.dyerName?.name}</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                    Rolls: {lot.no_of_rolls ?? 0}
-                  </Typography>
-                  {(lot.entries || []).map((e, ei) => (
-                    <Typography key={ei} variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                      {e.colour?.name} — {e.weight} kg
-                    </Typography>
-                  ))}
-                </Box>
-              ))
-            )}
-          </Grid>
-        </Grid>
-      </Box>
-    );
-  };
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" color="text.primary">Knitting Tracker</Typography>
-        <Button variant="contained" startIcon={<Plus size={18} />}
-          onClick={() => { setEditingId(null); setFormData(emptyForm()); setModalOpen(true); }}>
-          Add Record
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6">Yarn Stock</Typography>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Autocomplete
+            options={knitters}
+            getOptionLabel={(k) => k.name}
+            value={knitters.find(k => k.id === selectedKnitterId) || null}
+            onChange={(e, val) => setSelectedKnitterId(val?.id || null)}
+            sx={{ width: 250 }}
+            renderInput={(params) => <TextField {...params} label="Filter by Knitter" size="small" />}
+          />
+          <Button variant="contained" startIcon={<Plus size={18} />} onClick={() => setIssueModalOpen(true)}>
+            Issue Yarn
+          </Button>
+        </Box>
+      </Box>
+
+      {store.stockError && <Alert severity="error" sx={{ mb: 2 }}>{store.stockError}</Alert>}
+
+      {store.stockLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableRow>
+                {stockColumns.map((col) => (
+                  <TableCell key={col.field} sx={{ fontWeight: 'bold' }}>
+                    {col.headerName}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {store.stock.map((row) => (
+                <TableRow key={row.id} hover>
+                  <TableCell>{row.knitterName?.name}</TableCell>
+                  <TableCell>{row.yarn?.hf_code}</TableCell>
+                  <TableCell>{row.yarn?.description}</TableCell>
+                  <TableCell>{Number(row.received_weight).toFixed(2)}</TableCell>
+                  <TableCell>{Number(row.remaining_weight).toFixed(2)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {store.stock.length === 0 && (
+            <Box sx={{ p: 3, textAlign: 'center', color: '#999' }}>
+              No stock records found
+            </Box>
+          )}
+        </TableContainer>
+      )}
+
+      {/* Issue Yarn Modal */}
+      <Dialog open={issueModalOpen} onClose={() => setIssueModalOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Issue Yarn to Knitter</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {issueError && <Alert severity="error" sx={{ mb: 2 }}>{issueError}</Alert>}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Autocomplete
+              options={knitters}
+              getOptionLabel={(k) => k.name}
+              value={knitters.find(k => k.id === Number(issueForm.knitterId)) || null}
+              onChange={(e, val) => setIssueForm(prev => ({ ...prev, knitterId: val?.id || '' }))}
+              renderInput={(params) => <TextField {...params} label="Knitter" required />}
+            />
+            <Autocomplete
+              options={yarns}
+              getOptionLabel={(y) => `${y.hf_code} - ${y.description}`}
+              value={yarns.find(y => y.id === Number(issueForm.yarnId)) || null}
+              onChange={(e, val) => setIssueForm(prev => ({ ...prev, yarnId: val?.id || '' }))}
+              renderInput={(params) => <TextField {...params} label="Yarn" required />}
+            />
+            <TextField
+              label="Received Weight (kg)"
+              type="number"
+              inputProps={{ step: '0.01', min: '0' }}
+              value={issueForm.received_weight}
+              onChange={(e) => setIssueForm(prev => ({ ...prev, received_weight: e.target.value }))}
+              fullWidth
+              required
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIssueModalOpen(false)}>Cancel</Button>
+          <Button onClick={handleIssueSubmit} variant="contained" disabled={issueLoading}>
+            {issueLoading ? <CircularProgress size={24} /> : 'Issue'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar open={issueSuccess} autoHideDuration={3000} onClose={() => setIssueSuccess(false)}>
+        <Alert severity="success">Yarn issued successfully</Alert>
+      </Snackbar>
+    </Box>
+  );
+}
+
+// ============================================================================
+// Delivery Note Tab - Transfer Between Knitters
+// ============================================================================
+function DeliveryNoteTab() {
+  const store = useKnittingStore();
+  const [knitters, setKnitters] = useState([]);
+  const [yarns, setYarns] = useState([]);
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [transferForm, setTransferForm] = useState({
+    sourceKnitterId: '',
+    destKnitterId: '',
+    yarnId: '',
+    quantity: '',
+  });
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferError, setTransferError] = useState('');
+  const [transferSuccess, setTransferSuccess] = useState(false);
+
+  useEffect(() => {
+    store.fetchDeliveryNotes();
+  }, [store]);
+
+  useEffect(() => {
+    Promise.all([
+      api.get('/knitter-names').then(r => setKnitters(r.data)),
+      api.get('/yarn').then(r => setYarns(r.data)),
+    ]).catch(err => console.error('Failed to load master data:', err));
+  }, []);
+
+  const handleTransferSubmit = async () => {
+    if (!transferForm.sourceKnitterId || !transferForm.destKnitterId || !transferForm.yarnId || !transferForm.quantity) {
+      setTransferError('All fields are required');
+      return;
+    }
+
+    setTransferLoading(true);
+    setTransferError('');
+    const result = await store.createDeliveryNote({
+      sourceKnitterId: Number(transferForm.sourceKnitterId),
+      destKnitterId: Number(transferForm.destKnitterId),
+      yarnId: Number(transferForm.yarnId),
+      quantity: Number(transferForm.quantity),
+    });
+
+    if (result.success) {
+      setTransferSuccess(true);
+      setTransferForm({ sourceKnitterId: '', destKnitterId: '', yarnId: '', quantity: '' });
+      setTransferModalOpen(false);
+      setTimeout(() => setTransferSuccess(false), 3000);
+    } else {
+      setTransferError(result.message);
+    }
+    setTransferLoading(false);
+  };
+
+  const deliveryColumns = [
+    { field: 'sourceKnitter.name', headerName: 'From Knitter' },
+    { field: 'destKnitter.name', headerName: 'To Knitter' },
+    { field: 'yarn.hf_code', headerName: 'Yarn HF Code' },
+    { field: 'quantity', headerName: 'Quantity (kg)' },
+    { field: 'transferDate', headerName: 'Transfer Date' },
+  ];
+
+  return (
+    <Box>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6">Delivery Notes</Typography>
+        <Button variant="contained" startIcon={<Plus size={18} />} onClick={() => setTransferModalOpen(true)}>
+          Transfer Yarn
         </Button>
       </Box>
 
-      <DataTable
-        columns={columns} data={data} totalCount={total} page={page} limit={limit}
-        onPageChange={setPage} onLimitChange={setLimit} onSearch={setSearch}
-        onEdit={handleEdit} onDelete={handleDelete} isLoading={loading}
-        expandedContent={renderExpanded}
-      />
+      {store.deliveryNotesError && <Alert severity="error" sx={{ mb: 2 }}>{store.deliveryNotesError}</Alert>}
 
-      {/* ── Add / Edit Dialog ── */}
-      <Dialog open={modalOpen} onClose={() => setModalOpen(false)} maxWidth="lg" fullWidth
-        PaperProps={{ sx: { maxHeight: '95vh' } }}>
-        <DialogTitle>{editingId ? 'Edit Knitting Record' : 'Add Knitting Record'}</DialogTitle>
-        <DialogContent dividers>
-          <Grid container spacing={2}>
-
-            {/* ── Section: Knitter Details ── */}
-            <Grid item xs={12}>
-              <Typography variant="subtitle1" fontWeight={600} color="primary" gutterBottom>
-                Knitter Details
-              </Typography>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="DC No" value={formData.dc_no}
-                onChange={(e) => setFormData({ ...formData, dc_no: e.target.value })} />
-            </Grid>
-            <Grid item xs={12} sm={8}>
-              <SmartDropdown label="Knitter Name" value={formData.knitter_name_id}
-                onChange={(e) => setFormData({ ...formData, knitter_name_id: e.target.value })}
-                entity="knitter-names" required />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Total Yarn Qty (kg)" type="number" value={formData.total_yarn_qty}
-                InputProps={{ readOnly: true }}
-                helperText="Auto-calculated from HF Code weights" />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Loop Length (mm)" type="number" value={formData.loop_length}
-                onChange={(e) => setFormData({ ...formData, loop_length: e.target.value })} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Dia (inches)" type="number" value={formData.dia}
-                onChange={(e) => setFormData({ ...formData, dia: e.target.value })} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Count (auto from yarn)" value={formData.count}
-                onChange={(e) => setFormData({ ...formData, count: e.target.value })}
-                helperText="Auto-filled from first HF Code" />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Gauge" value={formData.gauge}
-                onChange={(e) => setFormData({ ...formData, gauge: e.target.value })} />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <SmartDropdown label="Fabric Description" value={formData.fabric_description_id}
-                onChange={(e) => setFormData({ ...formData, fabric_description_id: e.target.value })}
-                entity="fabric-descriptions" required />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Grey Fabric Weight (kg)" type="number" value={formData.grey_fabric_weight}
-                onChange={(e) => setFormData({ ...formData, grey_fabric_weight: e.target.value })} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Received Weight from Yarn (kg)" type="number" value={formData.received_weight}
-                onChange={(e) => setFormData({ ...formData, received_weight: e.target.value })}
-                helperText="Actual weight received back from knitter" />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Other Yarn Type" value={formData.other_yarn_type}
-                onChange={(e) => setFormData({ ...formData, other_yarn_type: e.target.value })} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth label="Other Yarn %" type="number" value={formData.other_yarn_percentage}
-                onChange={(e) => setFormData({ ...formData, other_yarn_percentage: e.target.value })} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth type="date" label="Date Given" InputLabelProps={{ shrink: true }}
-                value={formData.date_given} onChange={(e) => setFormData({ ...formData, date_given: e.target.value })} />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField fullWidth type="date" label="Date Received" InputLabelProps={{ shrink: true }}
-                value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
-            </Grid>
-
-            {/* ── Section: Yarn HF Code Usages ── */}
-            <Grid item xs={12}>
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle1" fontWeight={600} color="primary" sx={{ mb: 1.5 }}>
-                Yarn Usage (Select HF Codes)
-              </Typography>
-              <Autocomplete
-                multiple
-                options={hfCodeOptions}
-                getOptionLabel={(option) => `${option.hf_code} — ${option.description} (Rem: ${(option.remaining || 0).toFixed(1)} kg)`}
-                isOptionEqualToValue={(option, value) => option.hf_code === value.hf_code}
-                value={hfCodeOptions.filter(opt => formData.yarnUsages.some(u => u.hf_code === opt.hf_code))}
-                onChange={(event, newValue) => {
-                  setFormData(prev => {
-                    const newUsages = newValue.map(opt => {
-                      const existing = prev.yarnUsages.find(u => u.hf_code === opt.hf_code);
-                      return { hf_code: opt.hf_code, remaining: opt.remaining, quantity: existing ? existing.quantity : '', yarn_id: opt.id };
-                    });
-                    const totalQty = newUsages.reduce((sum, u) => sum + (Number(u.quantity) || 0), 0);
-                    return { ...prev, yarnUsages: newUsages, total_yarn_qty: totalQty || '' };
-                  });
-                }}
-                renderInput={(params) => (
-                  <TextField {...params} variant="outlined" label="HF Codes" placeholder="Select HF Codes..." />
-                )}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => {
-                    const { key, ...tagProps } = getTagProps({ index });
-                    return (
-                      <Chip
-                        key={key}
-                        variant="outlined"
-                        label={`${option.hf_code} (${option.remaining?.toFixed(1)}kg)`}
-                        {...tagProps}
-                        color={option.remaining > 0 ? 'success' : 'error'}
-                        size="small"
-                        sx={{ m: 0.5 }}
-                      />
-                    );
-                  })
-                }
-              />
-              {formData.yarnUsages.length > 0 && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Specify weight used for each selected HF Code:</Typography>
-                  <Grid container spacing={2}>
-                    {formData.yarnUsages.map((usage, idx) => (
-                      <Grid item xs={12} sm={4} key={idx}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label={`${usage.hf_code} Weight (kg)`}
-                          type="number"
-                          value={usage.quantity || ''}
-                          onChange={(e) => {
-                            const newUsages = [...formData.yarnUsages];
-                            newUsages[idx].quantity = e.target.value;
-                            const totalQty = newUsages.reduce((sum, u) => sum + (Number(u.quantity) || 0), 0);
-                            setFormData(prev => ({ ...prev, yarnUsages: newUsages, total_yarn_qty: totalQty || '' }));
-                          }}
-                          InputProps={{
-                            endAdornment: <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary', whiteSpace: 'nowrap' }}>/ {usage.remaining?.toFixed(1)} kg</Typography>
-                          }}
-                        />
-                      </Grid>
-                    ))}
-                  </Grid>
-                </Box>
-              )}
-            </Grid>
-
-            {/* ── Section: Dyeing Lots ── */}
-            <Grid item xs={12}>
-              <Divider sx={{ my: 1 }} />
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="subtitle1" fontWeight={600} color="primary">
-                  Dyeing Lots
-                </Typography>
-                <Button size="small" startIcon={<PlusCircle size={14} />} onClick={addLot}>Add Lot</Button>
-              </Box>
-              {formData.lots.length === 0 && (
-                <Typography variant="body2" color="text.secondary">No lots added. Click "Add Lot" to assign dyeing lots.</Typography>
-              )}
-              {formData.lots.map((lot, lotIdx) => (
-                <Paper key={lotIdx} variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
-                  <Grid container spacing={1.5} alignItems="flex-start">
-                    <Grid item xs={12} sm={3}>
-                      <TextField fullWidth size="small" label="Lot No" value={lot.lot_no}
-                        onChange={(e) => updateLot(lotIdx, 'lot_no', e.target.value)} />
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <TextField fullWidth size="small" label="Job Work No" value={lot.job_work_no}
-                        onChange={(e) => updateLot(lotIdx, 'job_work_no', e.target.value)} />
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                      <SmartDropdown size="small" label="Dyer Name" value={lot.dyer_name_id}
-                        onChange={(e) => updateLot(lotIdx, 'dyer_name_id', e.target.value)}
-                        entity="dyer-names" />
-                    </Grid>
-                    <Grid item xs={12} sm={2}>
-                      <TextField fullWidth size="small" type="number" label="No of Rolls" value={lot.no_of_rolls}
-                        onChange={(e) => updateLot(lotIdx, 'no_of_rolls', e.target.value)} />
-                    </Grid>
-                    <Grid item xs={12} sm={2} sx={{ textAlign: 'right' }}>
-                      <IconButton size="small" color="error" onClick={() => removeLot(lotIdx)}>
-                        <Trash2 size={14} />
-                      </IconButton>
-                    </Grid>
-                    {/* Entries */}
-                    <Grid item xs={12}>
-                      <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-                        Colour entries for this lot:
-                      </Typography>
-                      {lot.entries.map((entry, entryIdx) => (
-                        <Grid container spacing={1} key={entryIdx} sx={{ mt: 0.5 }} alignItems="center">
-                          <Grid item xs={12} sm={5}>
-                            <SmartDropdown size="small" label="Colour" value={entry.colour_id}
-                              onChange={(e) => updateLotEntry(lotIdx, entryIdx, 'colour_id', e.target.value)}
-                              entity="colours" />
-                          </Grid>
-                          <Grid item xs={8} sm={4}>
-                            <TextField fullWidth size="small" type="number" label="Weight (kg)"
-                              value={entry.weight}
-                              onChange={(e) => updateLotEntry(lotIdx, entryIdx, 'weight', e.target.value)} />
-                          </Grid>
-                          <Grid item xs={4} sm={3} sx={{ textAlign: 'right' }}>
-                            {lot.entries.length > 1 && (
-                              <IconButton size="small" color="error" onClick={() => removeLotEntry(lotIdx, entryIdx)}>
-                                <Trash2 size={12} />
-                              </IconButton>
-                            )}
-                          </Grid>
-                        </Grid>
-                      ))}
-                      <Button size="small" sx={{ mt: 0.5 }} onClick={() => addLotEntry(lotIdx)}>
-                        + Add colour entry
-                      </Button>
-                    </Grid>
-                  </Grid>
-                </Paper>
+      {store.deliveryNotesLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableRow>
+                {deliveryColumns.map((col) => (
+                  <TableCell key={col.field} sx={{ fontWeight: 'bold' }}>
+                    {col.headerName}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {store.deliveryNotes.map((row) => (
+                <TableRow key={row.id} hover>
+                  <TableCell>{row.sourceKnitter?.name}</TableCell>
+                  <TableCell>{row.destKnitter?.name}</TableCell>
+                  <TableCell>{row.yarn?.hf_code}</TableCell>
+                  <TableCell>{Number(row.quantity).toFixed(2)}</TableCell>
+                  <TableCell>{new Date(row.transferDate).toLocaleDateString()}</TableCell>
+                </TableRow>
               ))}
-            </Grid>
+            </TableBody>
+          </Table>
+          {store.deliveryNotes.length === 0 && (
+            <Box sx={{ p: 3, textAlign: 'center', color: '#999' }}>
+              No delivery notes found
+            </Box>
+          )}
+        </TableContainer>
+      )}
 
-            {/* ── Section: Grey Fabric Specifications ── */}
-            <Grid item xs={12}>
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle1" fontWeight={600} color="primary" gutterBottom>
-                Grey Fabric Specifications
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                Specify the grey fabric (knitted output) characteristics for this job.
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField fullWidth label="Description (e.g., Cotton Jersey)" value={formData.greyFabric.description}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      greyFabric: { ...prev.greyFabric, description: e.target.value }
-                    }))} />
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                  <TextField fullWidth label="Gauge" value={formData.greyFabric.gauge}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      greyFabric: { ...prev.greyFabric, gauge: e.target.value }
-                    }))} />
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                  <TextField fullWidth label="Loop Length (mm)" type="number" value={formData.greyFabric.loopLength}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      greyFabric: { ...prev.greyFabric, loopLength: e.target.value }
-                    }))} />
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                  <TextField fullWidth label="Diameter (inches)" type="number" value={formData.greyFabric.diameter}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      greyFabric: { ...prev.greyFabric, diameter: e.target.value }
-                    }))} />
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                  <TextField fullWidth label="GSM" type="number" value={formData.greyFabric.gsm}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      greyFabric: { ...prev.greyFabric, gsm: e.target.value }
-                    }))} />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField fullWidth label="Quantity Produced (kg)" type="number" value={formData.greyFabric.quantity}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      greyFabric: { ...prev.greyFabric, quantity: e.target.value }
-                    }))}
-                    helperText={formData.yarnUsages.length > 0 ? `Max available: ${formData.total_yarn_qty || 0} kg (from yarn usage)` : ''} />
-                </Grid>
-              </Grid>
-            </Grid>
-
-          </Grid>
+      {/* Transfer Modal */}
+      <Dialog open={transferModalOpen} onClose={() => setTransferModalOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Transfer Yarn Between Knitters</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {transferError && <Alert severity="error" sx={{ mb: 2 }}>{transferError}</Alert>}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Autocomplete
+              options={knitters}
+              getOptionLabel={(k) => k.name}
+              value={knitters.find(k => k.id === Number(transferForm.sourceKnitterId)) || null}
+              onChange={(e, val) => setTransferForm(prev => ({ ...prev, sourceKnitterId: val?.id || '' }))}
+              renderInput={(params) => <TextField {...params} label="From Knitter" required />}
+            />
+            <Autocomplete
+              options={knitters}
+              getOptionLabel={(k) => k.name}
+              value={knitters.find(k => k.id === Number(transferForm.destKnitterId)) || null}
+              onChange={(e, val) => setTransferForm(prev => ({ ...prev, destKnitterId: val?.id || '' }))}
+              renderInput={(params) => <TextField {...params} label="To Knitter" required />}
+            />
+            <Autocomplete
+              options={yarns}
+              getOptionLabel={(y) => `${y.hf_code} - ${y.description}`}
+              value={yarns.find(y => y.id === Number(transferForm.yarnId)) || null}
+              onChange={(e, val) => setTransferForm(prev => ({ ...prev, yarnId: val?.id || '' }))}
+              renderInput={(params) => <TextField {...params} label="Yarn" required />}
+            />
+            <TextField
+              label="Quantity (kg)"
+              type="number"
+              inputProps={{ step: '0.01', min: '0' }}
+              value={transferForm.quantity}
+              onChange={(e) => setTransferForm(prev => ({ ...prev, quantity: e.target.value }))}
+              fullWidth
+              required
+            />
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setModalOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSave}>Save</Button>
+        <DialogActions>
+          <Button onClick={() => setTransferModalOpen(false)}>Cancel</Button>
+          <Button onClick={handleTransferSubmit} variant="contained" disabled={transferLoading}>
+            {transferLoading ? <CircularProgress size={24} /> : 'Transfer'}
+          </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar open={transferSuccess} autoHideDuration={3000} onClose={() => setTransferSuccess(false)}>
+        <Alert severity="success">Transfer created successfully</Alert>
+      </Snackbar>
+    </Box>
+  );
+}
+
+// ============================================================================
+// Knitter Program Tab - Create Knitting Programs + Show Grey Fabric Lots
+// ============================================================================
+function KnitterProgramTab() {
+  const store = useKnittingStore();
+  const [knitters, setKnitters] = useState([]);
+  const [yarns, setYarns] = useState([]);
+  const [selectedKnitterId, setSelectedKnitterId] = useState(null);
+  const [programModalOpen, setProgramModalOpen] = useState(false);
+  const [programForm, setProgramForm] = useState({
+    knitterId: '',
+    yarnId: '',
+    quantity_used: '',
+    manual_grey_weight: '',
+    number_of_rolls: '',
+    gauge: '',
+    loop_length: '',
+  });
+  const [programLoading, setProgramLoading] = useState(false);
+  const [programError, setProgramError] = useState('');
+  const [programSuccess, setProgramSuccess] = useState(false);
+
+  useEffect(() => {
+    store.fetchPrograms(selectedKnitterId);
+    store.fetchGreyFabricLots();
+  }, [selectedKnitterId, store]);
+
+  useEffect(() => {
+    Promise.all([
+      api.get('/knitter-names').then(r => setKnitters(r.data)),
+      api.get('/yarn').then(r => setYarns(r.data)),
+    ]).catch(err => console.error('Failed to load master data:', err));
+  }, []);
+
+  const handleProgramSubmit = async () => {
+    if (!programForm.knitterId || !programForm.yarnId || !programForm.quantity_used || programForm.manual_grey_weight === '') {
+      setProgramError('Knitter, Yarn, Quantity, and Grey Weight are required');
+      return;
+    }
+
+    setProgramLoading(true);
+    setProgramError('');
+    const result = await store.createProgram({
+      knitterId: Number(programForm.knitterId),
+      yarnId: Number(programForm.yarnId),
+      quantity_used: Number(programForm.quantity_used),
+      manual_grey_weight: Number(programForm.manual_grey_weight),
+      number_of_rolls: programForm.number_of_rolls ? Number(programForm.number_of_rolls) : 0,
+      gauge: programForm.gauge || null,
+      loop_length: programForm.loop_length ? Number(programForm.loop_length) : null,
+    });
+
+    if (result.success) {
+      setProgramSuccess(true);
+      setProgramForm({
+        knitterId: '',
+        yarnId: '',
+        quantity_used: '',
+        manual_grey_weight: '',
+        number_of_rolls: '',
+        gauge: '',
+        loop_length: '',
+      });
+      setProgramModalOpen(false);
+      setTimeout(() => setProgramSuccess(false), 3000);
+    } else {
+      setProgramError(result.message);
+    }
+    setProgramLoading(false);
+  };
+
+  const programColumns = [
+    { field: 'knitterName.name', headerName: 'Knitter' },
+    { field: 'yarn.hf_code', headerName: 'HF Code' },
+    { field: 'quantity_used', headerName: 'Quantity (kg)' },
+    { field: 'grey_weight', headerName: 'Grey Weight (kg)' },
+    { field: 'number_of_rolls', headerName: 'Rolls' },
+    { field: 'productionDate', headerName: 'Date' },
+  ];
+
+  const greyFabricColumns = [
+    { field: 'knitterProgram.knitterName.name', headerName: 'Knitter' },
+    { field: 'knitterProgram.yarn.hf_code', headerName: 'Yarn HF Code' },
+    { field: 'grey_weight', headerName: 'Weight (kg)' },
+    { field: 'status', headerName: 'Status' },
+    { field: 'createdAt', headerName: 'Created' },
+  ];
+
+  return (
+    <Box>
+      <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">Knitter Programs</Typography>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Autocomplete
+              options={knitters}
+              getOptionLabel={(k) => k.name}
+              value={knitters.find(k => k.id === selectedKnitterId) || null}
+              onChange={(e, val) => setSelectedKnitterId(val?.id || null)}
+              sx={{ width: 250 }}
+              renderInput={(params) => <TextField {...params} label="Filter by Knitter" size="small" />}
+            />
+            <Button variant="contained" startIcon={<Plus size={18} />} onClick={() => setProgramModalOpen(true)}>
+              Create Program
+            </Button>
+          </Box>
+        </Box>
+
+        {store.programsError && <Alert severity="error" sx={{ mb: 2 }}>{store.programsError}</Alert>}
+
+        {store.programsLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+                <TableRow>
+                  {programColumns.map((col) => (
+                    <TableCell key={col.field} sx={{ fontWeight: 'bold' }}>
+                      {col.headerName}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {store.programs.map((row) => (
+                  <TableRow key={row.id} hover>
+                    <TableCell>{row.knitterName?.name}</TableCell>
+                    <TableCell>{row.yarn?.hf_code}</TableCell>
+                    <TableCell>{Number(row.quantity_used).toFixed(2)}</TableCell>
+                    <TableCell>{Number(row.grey_weight).toFixed(2)}</TableCell>
+                    <TableCell>{row.number_of_rolls}</TableCell>
+                    <TableCell>{new Date(row.productionDate).toLocaleDateString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {store.programs.length === 0 && (
+              <Box sx={{ p: 3, textAlign: 'center', color: '#999' }}>
+                No programs found
+              </Box>
+            )}
+          </TableContainer>
+        )}
+      </Box>
+
+      {/* Grey Fabric Available */}
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Available Grey Fabric Lots (Ready for Dyeing)
+        </Typography>
+
+        {store.greyFabricLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+                <TableRow>
+                  {greyFabricColumns.map((col) => (
+                    <TableCell key={col.field} sx={{ fontWeight: 'bold' }}>
+                      {col.headerName}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {store.greyFabricLots.map((row) => (
+                  <TableRow key={row.id} hover>
+                    <TableCell>{row.knitterProgram?.knitterName?.name}</TableCell>
+                    <TableCell>{row.knitterProgram?.yarn?.hf_code}</TableCell>
+                    <TableCell>{Number(row.grey_weight).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Chip label={row.status} color={row.status === 'AVAILABLE' ? 'success' : 'default'} size="small" />
+                    </TableCell>
+                    <TableCell>{new Date(row.createdAt).toLocaleDateString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {store.greyFabricLots.length === 0 && (
+              <Box sx={{ p: 3, textAlign: 'center', color: '#999' }}>
+                No available grey fabric lots
+              </Box>
+            )}
+          </TableContainer>
+        )}
+      </Box>
+
+      {/* Program Modal */}
+      <Dialog open={programModalOpen} onClose={() => setProgramModalOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Create Knitter Program</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {programError && <Alert severity="error" sx={{ mb: 2 }}>{programError}</Alert>}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Autocomplete
+              options={knitters}
+              getOptionLabel={(k) => k.name}
+              value={knitters.find(k => k.id === Number(programForm.knitterId)) || null}
+              onChange={(e, val) => setProgramForm(prev => ({ ...prev, knitterId: val?.id || '' }))}
+              renderInput={(params) => <TextField {...params} label="Knitter" required />}
+            />
+            <Autocomplete
+              options={yarns}
+              getOptionLabel={(y) => `${y.hf_code} - ${y.description}`}
+              value={yarns.find(y => y.id === Number(programForm.yarnId)) || null}
+              onChange={(e, val) => setProgramForm(prev => ({ ...prev, yarnId: val?.id || '' }))}
+              renderInput={(params) => <TextField {...params} label="Yarn" required />}
+            />
+            <TextField
+              label="Quantity Used (kg)"
+              type="number"
+              inputProps={{ step: '0.01', min: '0' }}
+              value={programForm.quantity_used}
+              onChange={(e) => setProgramForm(prev => ({ ...prev, quantity_used: e.target.value }))}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Grey Weight (kg)"
+              type="number"
+              inputProps={{ step: '0.01', min: '0' }}
+              value={programForm.manual_grey_weight}
+              onChange={(e) => setProgramForm(prev => ({ ...prev, manual_grey_weight: e.target.value }))}
+              fullWidth
+              required
+              helperText="Manual entry - weight of grey fabric produced"
+            />
+            <TextField
+              label="Number of Rolls"
+              type="number"
+              inputProps={{ step: '1', min: '0' }}
+              value={programForm.number_of_rolls}
+              onChange={(e) => setProgramForm(prev => ({ ...prev, number_of_rolls: e.target.value }))}
+              fullWidth
+            />
+            <TextField
+              label="Gauge (optional)"
+              value={programForm.gauge}
+              onChange={(e) => setProgramForm(prev => ({ ...prev, gauge: e.target.value }))}
+              fullWidth
+            />
+            <TextField
+              label="Loop Length (optional)"
+              type="number"
+              inputProps={{ step: '0.01', min: '0' }}
+              value={programForm.loop_length}
+              onChange={(e) => setProgramForm(prev => ({ ...prev, loop_length: e.target.value }))}
+              fullWidth
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setProgramModalOpen(false)}>Cancel</Button>
+          <Button onClick={handleProgramSubmit} variant="contained" disabled={programLoading}>
+            {programLoading ? <CircularProgress size={24} /> : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar open={programSuccess} autoHideDuration={3000} onClose={() => setProgramSuccess(false)}>
+        <Alert severity="success">Program created successfully</Alert>
+      </Snackbar>
+    </Box>
+  );
+}
+
+// ============================================================================
+// Dyeing Program Tab - Consume Grey Fabric
+// ============================================================================
+function DyeingProgramTab() {
+  const store = useKnittingStore();
+  const [dyers, setDyers] = useState([]);
+  const [colours, setColours] = useState([]);
+  const [greyFabricLots, setGreyFabricLots] = useState([]);
+  const [dyeingModalOpen, setDyeingModalOpen] = useState(false);
+  const [dyeingForm, setDyeingForm] = useState({
+    greyFabricLotId: '',
+    dyerId: '',
+    lot_no: '',
+    colour_id: '',
+    gauge: '',
+    loop_length: '',
+    output_weight: '',
+  });
+  const [dyeingLoading, setDyeingLoading] = useState(false);
+  const [dyeingError, setDyeingError] = useState('');
+  const [dyeingSuccess, setDyeingSuccess] = useState(false);
+  const [dyeingRecords, setDyeingRecords] = useState([]);
+  const [dyeingRecordsLoading, setDyeingRecordsLoading] = useState(false);
+
+  useEffect(() => {
+    store.fetchGreyFabricLots();
+    fetchDyeingRecords();
+  }, [store]);
+
+  useEffect(() => {
+    setGreyFabricLots(store.greyFabricLots);
+  }, [store.greyFabricLots]);
+
+  useEffect(() => {
+    Promise.all([
+      api.get('/dyer-names').then(r => setDyers(r.data)),
+      api.get('/colours').then(r => setColours(r.data)),
+    ]).catch(err => console.error('Failed to load master data:', err));
+  }, []);
+
+  const fetchDyeingRecords = async () => {
+    setDyeingRecordsLoading(true);
+    try {
+      const res = await api.get('/dyeing?page=1&limit=50&search=');
+      setDyeingRecords(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch dyeing records:', err);
+    }
+    setDyeingRecordsLoading(false);
+  };
+
+  const handleDyeingSubmit = async () => {
+    if (!dyeingForm.greyFabricLotId || !dyeingForm.dyerId || !dyeingForm.lot_no || !dyeingForm.colour_id) {
+      setDyeingError('Grey Fabric, Dyer, Lot No, and Colour are required');
+      return;
+    }
+
+    setDyeingLoading(true);
+    setDyeingError('');
+    try {
+      const response = await api.post('/dyeing/program', {
+        greyFabricLotId: Number(dyeingForm.greyFabricLotId),
+        dyerId: Number(dyeingForm.dyerId),
+        lot_no: dyeingForm.lot_no,
+        colour_id: Number(dyeingForm.colour_id),
+        gauge: dyeingForm.gauge || null,
+        loop_length: dyeingForm.loop_length ? Number(dyeingForm.loop_length) : null,
+        output_weight: dyeingForm.output_weight ? Number(dyeingForm.output_weight) : null,
+      });
+
+      setDyeingSuccess(true);
+      setDyeingForm({
+        greyFabricLotId: '',
+        dyerId: '',
+        lot_no: '',
+        colour_id: '',
+        gauge: '',
+        loop_length: '',
+        output_weight: '',
+      });
+      setDyeingModalOpen(false);
+      store.fetchGreyFabricLots();
+      fetchDyeingRecords();
+      setTimeout(() => setDyeingSuccess(false), 3000);
+    } catch (err) {
+      setDyeingError(err.response?.data?.message || 'Failed to create dyeing program');
+    }
+    setDyeingLoading(false);
+  };
+
+  const dyeingRecordColumns = [
+    { field: 'lot_no', headerName: 'Lot No' },
+    { field: 'dyerName.name', headerName: 'Dyer' },
+    { field: 'colour.name', headerName: 'Colour' },
+    { field: 'initial_weight', headerName: 'Initial Weight (kg)' },
+    { field: 'output_weight', headerName: 'Output Weight (kg)' },
+    { field: 'date', headerName: 'Date' },
+  ];
+
+  return (
+    <Box>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6">Dyeing Programs</Typography>
+        <Button variant="contained" startIcon={<Plus size={18} />} onClick={() => setDyeingModalOpen(true)}>
+          Create Dyeing Program
+        </Button>
+      </Box>
+
+      {dyeingRecordsLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableRow>
+                {dyeingRecordColumns.map((col) => (
+                  <TableCell key={col.field} sx={{ fontWeight: 'bold' }}>
+                    {col.headerName}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {dyeingRecords.map((row) => (
+                <TableRow key={row.id} hover>
+                  <TableCell>{row.lot_no}</TableCell>
+                  <TableCell>{row.dyerName?.name}</TableCell>
+                  <TableCell>{row.colour?.name}</TableCell>
+                  <TableCell>{Number(row.initial_weight).toFixed(2)}</TableCell>
+                  <TableCell>{row.output_weight ? Number(row.output_weight).toFixed(2) : '-'}</TableCell>
+                  <TableCell>{new Date(row.date).toLocaleDateString()}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {dyeingRecords.length === 0 && (
+            <Box sx={{ p: 3, textAlign: 'center', color: '#999' }}>
+              No dyeing records found
+            </Box>
+          )}
+        </TableContainer>
+      )}
+
+      {/* Dyeing Modal */}
+      <Dialog open={dyeingModalOpen} onClose={() => setDyeingModalOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Create Dyeing Program</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {dyeingError && <Alert severity="error" sx={{ mb: 2 }}>{dyeingError}</Alert>}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Autocomplete
+              options={greyFabricLots}
+              getOptionLabel={(lot) =>
+                `Lot #${lot.id} - ${lot.knitterProgram?.knitterName?.name || 'Unknown'} (${Number(lot.grey_weight).toFixed(2)} kg)`
+              }
+              value={greyFabricLots.find(l => l.id === Number(dyeingForm.greyFabricLotId)) || null}
+              onChange={(e, val) => setDyeingForm(prev => ({ ...prev, greyFabricLotId: val?.id || '' }))}
+              renderInput={(params) => <TextField {...params} label="Grey Fabric Lot" required />}
+            />
+            <Autocomplete
+              options={dyers}
+              getOptionLabel={(d) => d.name}
+              value={dyers.find(d => d.id === Number(dyeingForm.dyerId)) || null}
+              onChange={(e, val) => setDyeingForm(prev => ({ ...prev, dyerId: val?.id || '' }))}
+              renderInput={(params) => <TextField {...params} label="Dyer" required />}
+            />
+            <TextField
+              label="Lot No"
+              value={dyeingForm.lot_no}
+              onChange={(e) => setDyeingForm(prev => ({ ...prev, lot_no: e.target.value }))}
+              fullWidth
+              required
+            />
+            <Autocomplete
+              options={colours}
+              getOptionLabel={(c) => c.name}
+              value={colours.find(c => c.id === Number(dyeingForm.colour_id)) || null}
+              onChange={(e, val) => setDyeingForm(prev => ({ ...prev, colour_id: val?.id || '' }))}
+              renderInput={(params) => <TextField {...params} label="Colour" required />}
+            />
+            <TextField
+              label="Gauge (optional)"
+              value={dyeingForm.gauge}
+              onChange={(e) => setDyeingForm(prev => ({ ...prev, gauge: e.target.value }))}
+              fullWidth
+            />
+            <TextField
+              label="Loop Length (optional)"
+              type="number"
+              inputProps={{ step: '0.01', min: '0' }}
+              value={dyeingForm.loop_length}
+              onChange={(e) => setDyeingForm(prev => ({ ...prev, loop_length: e.target.value }))}
+              fullWidth
+            />
+            <TextField
+              label="Output Weight (optional, kg)"
+              type="number"
+              inputProps={{ step: '0.01', min: '0' }}
+              value={dyeingForm.output_weight}
+              onChange={(e) => setDyeingForm(prev => ({ ...prev, output_weight: e.target.value }))}
+              fullWidth
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDyeingModalOpen(false)}>Cancel</Button>
+          <Button onClick={handleDyeingSubmit} variant="contained" disabled={dyeingLoading}>
+            {dyeingLoading ? <CircularProgress size={24} /> : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar open={dyeingSuccess} autoHideDuration={3000} onClose={() => setDyeingSuccess(false)}>
+        <Alert severity="success">Dyeing program created successfully</Alert>
+      </Snackbar>
+    </Box>
+  );
+}
+
+// ============================================================================
+// Main Knitting Component with Tabs
+// ============================================================================
+const Knitting = () => {
+  const [tabValue, setTabValue] = useState(0);
+
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
+
+  return (
+    <Box sx={{ width: '100%' }}>
+      <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold' }}>
+        Knitting & Dyeing Pipeline
+      </Typography>
+
+      <Paper sx={{ mb: 3 }}>
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          aria-label="knitting tabs"
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Tab label="Stock" id="knitting-tab-0" aria-controls="knitting-tabpanel-0" />
+          <Tab label="Delivery Note" id="knitting-tab-1" aria-controls="knitting-tabpanel-1" />
+          <Tab label="Knitter Program" id="knitting-tab-2" aria-controls="knitting-tabpanel-2" />
+          <Tab label="Dyeing Program" id="knitting-tab-3" aria-controls="knitting-tabpanel-3" />
+        </Tabs>
+      </Paper>
+
+      <TabPanel value={tabValue} index={0}>
+        <StockTab />
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={1}>
+        <DeliveryNoteTab />
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={2}>
+        <KnitterProgramTab />
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={3}>
+        <DyeingProgramTab />
+      </TabPanel>
     </Box>
   );
 };
