@@ -279,6 +279,7 @@ model Dyeing {
   final_weight      Float?
   process_loss      Float?
   date              DateTime         @default(now())
+  dateGiven         DateTime?
   knitterDcNo       String?
   companyDcNo       String?
   compacterId       Int?

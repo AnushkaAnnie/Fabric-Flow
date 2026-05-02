@@ -34,6 +34,26 @@ const useDyeingStore = create((set, get) => ({
       };
     }
   },
+
+  updateDyeing: async (id, data) => {
+    try {
+      await dyeingApi.updateDyeing(id, data);
+      await get().fetchDyeings();
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: err.response?.data?.message || 'Update failed' };
+    }
+  },
+
+  deleteDyeing: async (id) => {
+    try {
+      await dyeingApi.deleteDyeing(id);
+      await get().fetchDyeings();
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: err.response?.data?.message || 'Delete failed' };
+    }
+  },
 }));
 
 export default useDyeingStore;

@@ -22272,6 +22272,7 @@ export namespace Prisma {
     final_weight: number | null
     process_loss: number | null
     date: Date | null
+    dateGiven: Date | null
     knitterDcNo: string | null
     companyDcNo: string | null
     compacterId: number | null
@@ -22298,6 +22299,7 @@ export namespace Prisma {
     final_weight: number | null
     process_loss: number | null
     date: Date | null
+    dateGiven: Date | null
     knitterDcNo: string | null
     companyDcNo: string | null
     compacterId: number | null
@@ -22324,6 +22326,7 @@ export namespace Prisma {
     final_weight: number
     process_loss: number
     date: number
+    dateGiven: number
     knitterDcNo: number
     companyDcNo: number
     compacterId: number
@@ -22384,6 +22387,7 @@ export namespace Prisma {
     final_weight?: true
     process_loss?: true
     date?: true
+    dateGiven?: true
     knitterDcNo?: true
     companyDcNo?: true
     compacterId?: true
@@ -22410,6 +22414,7 @@ export namespace Prisma {
     final_weight?: true
     process_loss?: true
     date?: true
+    dateGiven?: true
     knitterDcNo?: true
     companyDcNo?: true
     compacterId?: true
@@ -22436,6 +22441,7 @@ export namespace Prisma {
     final_weight?: true
     process_loss?: true
     date?: true
+    dateGiven?: true
     knitterDcNo?: true
     companyDcNo?: true
     compacterId?: true
@@ -22549,6 +22555,7 @@ export namespace Prisma {
     final_weight: number | null
     process_loss: number | null
     date: Date
+    dateGiven: Date | null
     knitterDcNo: string | null
     companyDcNo: string | null
     compacterId: number | null
@@ -22594,6 +22601,7 @@ export namespace Prisma {
     final_weight?: boolean
     process_loss?: boolean
     date?: boolean
+    dateGiven?: boolean
     knitterDcNo?: boolean
     companyDcNo?: boolean
     compacterId?: boolean
@@ -22625,6 +22633,7 @@ export namespace Prisma {
     final_weight?: boolean
     process_loss?: boolean
     date?: boolean
+    dateGiven?: boolean
     knitterDcNo?: boolean
     companyDcNo?: boolean
     compacterId?: boolean
@@ -22656,6 +22665,7 @@ export namespace Prisma {
     final_weight?: boolean
     process_loss?: boolean
     date?: boolean
+    dateGiven?: boolean
     knitterDcNo?: boolean
     companyDcNo?: boolean
     compacterId?: boolean
@@ -22706,6 +22716,7 @@ export namespace Prisma {
       final_weight: number | null
       process_loss: number | null
       date: Date
+      dateGiven: Date | null
       knitterDcNo: string | null
       companyDcNo: string | null
       compacterId: number | null
@@ -23127,6 +23138,7 @@ export namespace Prisma {
     readonly final_weight: FieldRef<"Dyeing", 'Float'>
     readonly process_loss: FieldRef<"Dyeing", 'Float'>
     readonly date: FieldRef<"Dyeing", 'DateTime'>
+    readonly dateGiven: FieldRef<"Dyeing", 'DateTime'>
     readonly knitterDcNo: FieldRef<"Dyeing", 'String'>
     readonly companyDcNo: FieldRef<"Dyeing", 'String'>
     readonly compacterId: FieldRef<"Dyeing", 'Int'>
@@ -28947,6 +28959,7 @@ export namespace Prisma {
     final_weight: 'final_weight',
     process_loss: 'process_loss',
     date: 'date',
+    dateGiven: 'dateGiven',
     knitterDcNo: 'knitterDcNo',
     companyDcNo: 'companyDcNo',
     compacterId: 'compacterId',
@@ -30549,6 +30562,7 @@ export namespace Prisma {
     final_weight?: FloatNullableFilter<"Dyeing"> | number | null
     process_loss?: FloatNullableFilter<"Dyeing"> | number | null
     date?: DateTimeFilter<"Dyeing"> | Date | string
+    dateGiven?: DateTimeNullableFilter<"Dyeing"> | Date | string | null
     knitterDcNo?: StringNullableFilter<"Dyeing"> | string | null
     companyDcNo?: StringNullableFilter<"Dyeing"> | string | null
     compacterId?: IntNullableFilter<"Dyeing"> | number | null
@@ -30580,6 +30594,7 @@ export namespace Prisma {
     final_weight?: SortOrderInput | SortOrder
     process_loss?: SortOrderInput | SortOrder
     date?: SortOrder
+    dateGiven?: SortOrderInput | SortOrder
     knitterDcNo?: SortOrderInput | SortOrder
     companyDcNo?: SortOrderInput | SortOrder
     compacterId?: SortOrderInput | SortOrder
@@ -30615,6 +30630,7 @@ export namespace Prisma {
     final_weight?: FloatNullableFilter<"Dyeing"> | number | null
     process_loss?: FloatNullableFilter<"Dyeing"> | number | null
     date?: DateTimeFilter<"Dyeing"> | Date | string
+    dateGiven?: DateTimeNullableFilter<"Dyeing"> | Date | string | null
     knitterDcNo?: StringNullableFilter<"Dyeing"> | string | null
     companyDcNo?: StringNullableFilter<"Dyeing"> | string | null
     compacterId?: IntNullableFilter<"Dyeing"> | number | null
@@ -30645,6 +30661,7 @@ export namespace Prisma {
     final_weight?: SortOrderInput | SortOrder
     process_loss?: SortOrderInput | SortOrder
     date?: SortOrder
+    dateGiven?: SortOrderInput | SortOrder
     knitterDcNo?: SortOrderInput | SortOrder
     companyDcNo?: SortOrderInput | SortOrder
     compacterId?: SortOrderInput | SortOrder
@@ -30679,6 +30696,7 @@ export namespace Prisma {
     final_weight?: FloatNullableWithAggregatesFilter<"Dyeing"> | number | null
     process_loss?: FloatNullableWithAggregatesFilter<"Dyeing"> | number | null
     date?: DateTimeWithAggregatesFilter<"Dyeing"> | Date | string
+    dateGiven?: DateTimeNullableWithAggregatesFilter<"Dyeing"> | Date | string | null
     knitterDcNo?: StringNullableWithAggregatesFilter<"Dyeing"> | string | null
     companyDcNo?: StringNullableWithAggregatesFilter<"Dyeing"> | string | null
     compacterId?: IntNullableWithAggregatesFilter<"Dyeing"> | number | null
@@ -32611,6 +32629,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     createdAt?: Date | string
@@ -32637,6 +32656,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     compacterId?: number | null
@@ -32662,6 +32682,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -32688,6 +32709,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     compacterId?: NullableIntFieldUpdateOperationsInput | number | null
@@ -32714,6 +32736,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     compacterId?: number | null
@@ -32739,6 +32762,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -32760,6 +32784,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     compacterId?: NullableIntFieldUpdateOperationsInput | number | null
@@ -34416,6 +34441,17 @@ export namespace Prisma {
     grey_weight?: SortOrder
   }
 
+  export type DateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | null
+    notIn?: Date[] | string[] | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
   export type WashTypeNullableRelationFilter = {
     is?: WashTypeWhereInput | null
     isNot?: WashTypeWhereInput | null
@@ -34441,6 +34477,7 @@ export namespace Prisma {
     final_weight?: SortOrder
     process_loss?: SortOrder
     date?: SortOrder
+    dateGiven?: SortOrder
     knitterDcNo?: SortOrder
     companyDcNo?: SortOrder
     compacterId?: SortOrder
@@ -34483,6 +34520,7 @@ export namespace Prisma {
     final_weight?: SortOrder
     process_loss?: SortOrder
     date?: SortOrder
+    dateGiven?: SortOrder
     knitterDcNo?: SortOrder
     companyDcNo?: SortOrder
     compacterId?: SortOrder
@@ -34509,6 +34547,7 @@ export namespace Prisma {
     final_weight?: SortOrder
     process_loss?: SortOrder
     date?: SortOrder
+    dateGiven?: SortOrder
     knitterDcNo?: SortOrder
     companyDcNo?: SortOrder
     compacterId?: SortOrder
@@ -34534,6 +34573,20 @@ export namespace Prisma {
     colour_id?: SortOrder
     dyer_name_id?: SortOrder
     wash_type_id?: SortOrder
+  }
+
+  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | null
+    notIn?: Date[] | string[] | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
   export type CompacterNameRelationFilter = {
@@ -36221,6 +36274,10 @@ export namespace Prisma {
     connect?: CompacterNameWhereUniqueInput
   }
 
+  export type NullableDateTimeFieldUpdateOperationsInput = {
+    set?: Date | string | null
+  }
+
   export type DyerNameUpdateOneRequiredWithoutDyeingsNestedInput = {
     create?: XOR<DyerNameCreateWithoutDyeingsInput, DyerNameUncheckedCreateWithoutDyeingsInput>
     connectOrCreate?: DyerNameCreateOrConnectWithoutDyeingsInput
@@ -36586,6 +36643,31 @@ export namespace Prisma {
     _sum?: NestedFloatNullableFilter<$PrismaModel>
     _min?: NestedFloatNullableFilter<$PrismaModel>
     _max?: NestedFloatNullableFilter<$PrismaModel>
+  }
+
+  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | null
+    notIn?: Date[] | string[] | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
+  export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | null
+    notIn?: Date[] | string[] | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
   export type YarnCreateWithoutMillNameInput = {
@@ -37028,6 +37110,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     createdAt?: Date | string
@@ -37053,6 +37136,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     compacterId?: number | null
@@ -37136,6 +37220,7 @@ export namespace Prisma {
     final_weight?: FloatNullableFilter<"Dyeing"> | number | null
     process_loss?: FloatNullableFilter<"Dyeing"> | number | null
     date?: DateTimeFilter<"Dyeing"> | Date | string
+    dateGiven?: DateTimeNullableFilter<"Dyeing"> | Date | string | null
     knitterDcNo?: StringNullableFilter<"Dyeing"> | string | null
     companyDcNo?: StringNullableFilter<"Dyeing"> | string | null
     compacterId?: IntNullableFilter<"Dyeing"> | number | null
@@ -37229,6 +37314,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     createdAt?: Date | string
@@ -37254,6 +37340,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     greyFabricLotId?: number | null
@@ -37338,6 +37425,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     createdAt?: Date | string
@@ -37363,6 +37451,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     compacterId?: number | null
@@ -37521,6 +37610,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     createdAt?: Date | string
@@ -37546,6 +37636,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     compacterId?: number | null
@@ -39654,6 +39745,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     createdAt?: Date | string
@@ -39679,6 +39771,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     compacterId?: number | null
@@ -40947,6 +41040,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     compacterId?: number | null
@@ -40981,6 +41075,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -41006,6 +41101,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     compacterId?: NullableIntFieldUpdateOperationsInput | number | null
@@ -41031,6 +41127,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     compacterId?: NullableIntFieldUpdateOperationsInput | number | null
@@ -41102,6 +41199,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     greyFabricLotId?: number | null
@@ -41170,6 +41268,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -41195,6 +41294,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     greyFabricLotId?: NullableIntFieldUpdateOperationsInput | number | null
@@ -41220,6 +41320,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     greyFabricLotId?: NullableIntFieldUpdateOperationsInput | number | null
@@ -41245,6 +41346,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     compacterId?: number | null
@@ -41293,6 +41395,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -41318,6 +41421,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     compacterId?: NullableIntFieldUpdateOperationsInput | number | null
@@ -41343,6 +41447,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     compacterId?: NullableIntFieldUpdateOperationsInput | number | null
@@ -41438,6 +41543,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     compacterId?: number | null
@@ -41462,6 +41568,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -41487,6 +41594,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     compacterId?: NullableIntFieldUpdateOperationsInput | number | null
@@ -41512,6 +41620,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     compacterId?: NullableIntFieldUpdateOperationsInput | number | null
@@ -41971,6 +42080,7 @@ export namespace Prisma {
     final_weight?: number | null
     process_loss?: number | null
     date?: Date | string
+    dateGiven?: Date | string | null
     knitterDcNo?: string | null
     companyDcNo?: string | null
     compacterId?: number | null
@@ -41995,6 +42105,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -42020,6 +42131,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     compacterId?: NullableIntFieldUpdateOperationsInput | number | null
@@ -42045,6 +42157,7 @@ export namespace Prisma {
     final_weight?: NullableFloatFieldUpdateOperationsInput | number | null
     process_loss?: NullableFloatFieldUpdateOperationsInput | number | null
     date?: DateTimeFieldUpdateOperationsInput | Date | string
+    dateGiven?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     knitterDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     companyDcNo?: NullableStringFieldUpdateOperationsInput | string | null
     compacterId?: NullableIntFieldUpdateOperationsInput | number | null

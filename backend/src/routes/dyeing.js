@@ -9,6 +9,7 @@ const INCLUDE = {
   dyerName: true,
   washType: true,
   colour: true,
+  compacter: true,
 };
 
 // GET /api/dyeing
@@ -189,52 +190,28 @@ router.post('/program', async (req, res, next) => {
 // PUT /api/dyeing/:id
 router.put('/:id', async (req, res, next) => {
   try {
-    const {
-      hf_code, source_type, fabric_code, count, initial_weight, dyer_name_id, wash_type_id, colour_id,
-      gg, initial_dia, final_dia,
-      no_of_rolls, final_weight, date,
-    } = req.body;
+    const { id } = req.params;
+    const { initial_weight, knitterDcNo, companyDcNo, compacterId, dateGiven } = req.body;
 
-    const sourceType = source_type || 'KNITTING';
-    let resolvedInitialWeight = Number(initial_weight);
-    let resolvedHfCode = hf_code;
+    const updateData = {};
+    if (initial_weight !== undefined) updateData.initial_weight = parseFloat(initial_weight);
+    if (knitterDcNo !== undefined) updateData.knitterDcNo = knitterDcNo;
+    if (companyDcNo !== undefined) updateData.companyDcNo = companyDcNo;
+    if (compacterId !== undefined) updateData.compacterId = parseInt(compacterId) || null;
+    if (dateGiven !== undefined) updateData.dateGiven = dateGiven ? new Date(dateGiven) : null;
 
-    if (sourceType === 'INHOUSE_FABRIC') {
-      if (!fabric_code) return res.status(400).json({ message: 'Fabric code is required for fabric purchase dyeing.' });
-      const fabric = await prisma.inhouseKnittedFabric.findUnique({ where: { fabric_code } });
-      if (!fabric) return res.status(404).json({ message: `Fabric Code "${fabric_code}" not found.` });
-      resolvedInitialWeight = fabric.total_weight;
-      resolvedHfCode = hf_code || fabric.fabric_code;
-    }
-
-    // Calculate process loss
-    const iw = resolvedInitialWeight;
-    const fw = Number(final_weight);
-    const process_loss = iw > 0 ? ((iw - fw) / iw) * 100 : 0;
-
-    const record = await prisma.dyeing.update({
-      where: { id: Number(req.params.id) },
-      data: {
-        hf_code: resolvedHfCode,
-        source_type: sourceType,
-        fabric_code: sourceType === 'INHOUSE_FABRIC' ? fabric_code : null,
-        count,
-        initial_weight: resolvedInitialWeight,
-        dyer_name_id: Number(dyer_name_id),
-        wash_type_id: Number(wash_type_id),
-        colour_id: Number(colour_id),
-        gg: Number(gg),
-        initial_dia: Number(initial_dia),
-        final_dia: Number(final_dia),
-        no_of_rolls: Number(no_of_rolls),
-        final_weight: Number(final_weight),
-        process_loss: process_loss,
-        date: new Date(date),
+    const updated = await prisma.dyeing.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+      include: {
+        dyerName: true,
+        colour: true,
+        compacter: true,
+        greyFabricLot: true,
       },
-      include: INCLUDE,
     });
 
-    res.json(record);
+    res.json(updated);
   } catch (err) {
     next(err);
   }
@@ -243,8 +220,23 @@ router.put('/:id', async (req, res, next) => {
 // DELETE /api/dyeing/:id
 router.delete('/:id', async (req, res, next) => {
   try {
-    await prisma.dyeing.delete({ where: { id: Number(req.params.id) } });
-    res.json({ message: 'Dyeing record deleted.' });
+    const { id } = req.params;
+    
+    // Fetch dyeing record first to see if it's tied to a grey fabric lot
+    const dyeing = await prisma.dyeing.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (dyeing && dyeing.greyFabricLotId) {
+      // Revert the grey fabric lot to AVAILABLE
+      await prisma.greyFabricLot.update({
+        where: { id: dyeing.greyFabricLotId },
+        data: { status: 'AVAILABLE' },
+      });
+    }
+
+    await prisma.dyeing.delete({ where: { id: parseInt(id) } });
+    res.json({ message: 'Dyeing record deleted and grey fabric reverted' });
   } catch (err) {
     next(err);
   }

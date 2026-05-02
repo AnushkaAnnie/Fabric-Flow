@@ -346,6 +346,7 @@ exports.Prisma.DyeingScalarFieldEnum = {
   final_weight: 'final_weight',
   process_loss: 'process_loss',
   date: 'date',
+  dateGiven: 'dateGiven',
   knitterDcNo: 'knitterDcNo',
   companyDcNo: 'companyDcNo',
   compacterId: 'compacterId',

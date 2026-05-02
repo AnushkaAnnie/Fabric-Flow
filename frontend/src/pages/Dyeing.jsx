@@ -1,275 +1,82 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box, Typography, TextField, Button, Autocomplete,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Paper, Grid, CircularProgress, Snackbar, Alert,
+  Box, Typography, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, Paper, CircularProgress, Button, IconButton,
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField,
+  Autocomplete, Grid, Chip
 } from '@mui/material';
-import useKnittingStore from '../store/knittingStore';
+import { Edit, Delete } from '@mui/icons-material';
 import useDyeingStore from '../store/dyeingStore';
-import { getDyers, getColours, getCompacters } from '../api/masters';
+import { getCompacters } from '../api/masters';
 
 const DyeingPage = () => {
-  const { greyFabricList, fetchGreyFabric } = useKnittingStore();
-  const { dyeingList, dyeingLoading, fetchDyeings, createDyeingProgram } =
-    useDyeingStore();
-
-  const [dyers, setDyers] = useState([]);
-  const [colours, setColours] = useState([]);
+  const { dyeingList, dyeingLoading, fetchDyeings, updateDyeing, deleteDyeing } = useDyeingStore();
   const [compacters, setCompacters] = useState([]);
-
-  const [form, setForm] = useState({
-    greyFabricLotId: null,
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedDyeing, setSelectedDyeing] = useState(null);
+  const [editForm, setEditForm] = useState({
+    initial_weight: '',
     knitterDcNo: '',
     companyDcNo: '',
-    lot_no: '',
-    dyerId: null,
-    colour_id: null,
     compacterId: null,
-    output_weight: '',
-    gauge: '',
-    loop_length: '',
+    dateGiven: '',
   });
-
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success',
-  });
-  const showSnackbar = (msg, sev = 'success') =>
-    setSnackbar({ open: true, message: msg, severity: sev });
 
   useEffect(() => {
-    const loadMasters = async () => {
-      try {
-        const [dyerRes, colourRes, compRes] = await Promise.all([
-          getDyers(),
-          getColours(),
-          getCompacters(),
-        ]);
-        setDyers(dyerRes.data);
-        setColours(colourRes.data);
-        setCompacters(compRes.data);
-      } catch (e) {
-        console.error('Failed to load master data', e);
-      }
-    };
-    loadMasters();
-    fetchGreyFabric();
     fetchDyeings();
+    getCompacters().then(res => setCompacters(res.data)).catch(console.error);
   }, []);
 
-  const handleSubmit = async () => {
-    const result = await createDyeingProgram({
-      greyFabricLotId: form.greyFabricLotId,
-      dyerId: form.dyerId,
-      lot_no: form.lot_no,
-      colour_id: form.colour_id,
-      output_weight: parseFloat(form.output_weight) || 0,
-      gauge: parseFloat(form.gauge) || 0,
-      loop_length: parseFloat(form.loop_length) || 0,
-      knitterDcNo: form.knitterDcNo,
-      companyDcNo: form.companyDcNo,
-      compacterId: form.compacterId,
+  const handleEditOpen = (dyeing) => {
+    setSelectedDyeing(dyeing);
+    setEditForm({
+      initial_weight: dyeing.initial_weight ?? '',
+      knitterDcNo: dyeing.knitterDcNo ?? '',
+      companyDcNo: dyeing.companyDcNo ?? '',
+      compacterId: dyeing.compacterId ?? null,
+      dateGiven: dyeing.dateGiven ? dyeing.dateGiven.slice(0, 10) : '',
     });
+    setEditDialogOpen(true);
+  };
 
-    if (result.success) {
-      showSnackbar('Dyeing program created successfully');
-      setForm({
-        greyFabricLotId: null,
-        knitterDcNo: '',
-        companyDcNo: '',
-        lot_no: '',
-        dyerId: null,
-        colour_id: null,
-        compacterId: null,
-        output_weight: '',
-        gauge: '',
-        loop_length: '',
-      });
-      fetchGreyFabric();
+  const handleEditSave = async () => {
+    if (!selectedDyeing) return;
+    const payload = {
+      initial_weight: editForm.initial_weight,
+      knitterDcNo: editForm.knitterDcNo,
+      companyDcNo: editForm.companyDcNo,
+      compacterId: editForm.compacterId,
+      dateGiven: editForm.dateGiven,
+    };
+    await updateDyeing(selectedDyeing.id, payload);
+    setEditDialogOpen(false);
+    fetchDyeings();
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this record?')) {
+      await deleteDyeing(id);
       fetchDyeings();
-    } else {
-      showSnackbar(result.message, 'error');
     }
   };
 
-  const selectedLot = greyFabricList.find(
-    (l) => l.id === form.greyFabricLotId
-  );
+  const calcProcessLoss = (initial, final) => {
+    if (!initial || initial === 0) return '0.00';
+    return (((initial - final) / initial) * 100).toFixed(2);
+  };
+
+  // Compute status based on manual fields
+  const getStatus = (item) => {
+    if (item.companyDcNo && item.dateGiven) return 'In Dyeing';
+    return 'Awaiting DC';
+  };
 
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
-        Dyeing Program
+        Dyeing Records
       </Typography>
 
-      {/* Dyeing Form */}
-      <Paper variant="outlined" sx={{ p: 3, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          New Dyeing Entry
-        </Typography>
-        <Grid container spacing={2}>
-          {/* Grey Fabric Lot */}
-          <Grid item xs={12} sm={4}>
-            <Autocomplete
-              options={greyFabricList}
-              getOptionLabel={(o) => `Lot ${o.id} (${o.grey_weight} kg)`}
-              value={selectedLot || null}
-              onChange={(e, v) =>
-                setForm({ ...form, greyFabricLotId: v?.id })
-              }
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Grey Fabric Lot"
-                  helperText={
-                    selectedLot
-                      ? `Grey weight: ${selectedLot.grey_weight} kg`
-                      : ''
-                  }
-                />
-              )}
-            />
-          </Grid>
-
-          {/* Knitter DC No. */}
-          <Grid item xs={12} sm={4}>
-            <TextField
-              label="Knitter DC No."
-              fullWidth
-              value={form.knitterDcNo}
-              onChange={(e) =>
-                setForm({ ...form, knitterDcNo: e.target.value })
-              }
-            />
-          </Grid>
-
-          {/* Company DC No. */}
-          <Grid item xs={12} sm={4}>
-            <TextField
-              label="Company DC No."
-              fullWidth
-              value={form.companyDcNo}
-              onChange={(e) =>
-                setForm({ ...form, companyDcNo: e.target.value })
-              }
-            />
-          </Grid>
-
-          {/* Lot No. */}
-          <Grid item xs={12} sm={4}>
-            <TextField
-              label="Lot No. (Dyeing)"
-              fullWidth
-              value={form.lot_no}
-              onChange={(e) =>
-                setForm({ ...form, lot_no: e.target.value })
-              }
-            />
-          </Grid>
-
-          {/* Dyer */}
-          <Grid item xs={12} sm={4}>
-            <Autocomplete
-              options={dyers}
-              getOptionLabel={(o) => o.name}
-              value={dyers.find((d) => d.id === form.dyerId) || null}
-              onChange={(e, v) =>
-                setForm({ ...form, dyerId: v?.id })
-              }
-              renderInput={(params) => (
-                <TextField {...params} label="Dyer" />
-              )}
-            />
-          </Grid>
-
-          {/* Colour */}
-          <Grid item xs={12} sm={4}>
-            <Autocomplete
-              options={colours}
-              getOptionLabel={(o) => o.name}
-              value={colours.find((c) => c.id === form.colour_id) || null}
-              onChange={(e, v) =>
-                setForm({ ...form, colour_id: v?.id })
-              }
-              renderInput={(params) => (
-                <TextField {...params} label="Colour" />
-              )}
-            />
-          </Grid>
-
-          {/* Compacter */}
-          <Grid item xs={12} sm={4}>
-            <Autocomplete
-              options={compacters}
-              getOptionLabel={(o) => o.name}
-              value={
-                compacters.find((c) => c.id === form.compacterId) || null
-              }
-              onChange={(e, v) =>
-                setForm({ ...form, compacterId: v?.id })
-              }
-              renderInput={(params) => (
-                <TextField {...params} label="Compacter" />
-              )}
-            />
-          </Grid>
-
-          {/* Output Weight */}
-          <Grid item xs={12} sm={4}>
-            <TextField
-              label="Output Weight (kg)"
-              type="number"
-              fullWidth
-              value={form.output_weight}
-              onChange={(e) =>
-                setForm({ ...form, output_weight: e.target.value })
-              }
-            />
-          </Grid>
-
-          {/* Gauge */}
-          <Grid item xs={12} sm={4}>
-            <TextField
-              label="Gauge"
-              type="number"
-              fullWidth
-              value={form.gauge}
-              onChange={(e) =>
-                setForm({ ...form, gauge: e.target.value })
-              }
-            />
-          </Grid>
-
-          {/* Loop Length */}
-          <Grid item xs={12} sm={4}>
-            <TextField
-              label="Loop Length"
-              type="number"
-              fullWidth
-              value={form.loop_length}
-              onChange={(e) =>
-                setForm({ ...form, loop_length: e.target.value })
-              }
-            />
-          </Grid>
-
-          <Grid item xs={12}>
-            <Button
-              variant="contained"
-              onClick={handleSubmit}
-              size="large"
-            >
-              Create Dyeing
-            </Button>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      {/* Dyeing Records Table */}
-      <Typography variant="h6" gutterBottom>
-        All Dyeing Records
-      </Typography>
       {dyeingLoading ? (
         <CircularProgress />
       ) : (
@@ -278,26 +85,43 @@ const DyeingPage = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Lot No.</TableCell>
-                <TableCell>Grey Lot</TableCell>
+                <TableCell>Received Weight (kg)</TableCell>
+                <TableCell>Final Weight (kg)</TableCell>
+                <TableCell>Process Loss (%)</TableCell>
                 <TableCell>Knitter DC</TableCell>
                 <TableCell>Company DC</TableCell>
                 <TableCell>Colour</TableCell>
                 <TableCell>Dyer</TableCell>
                 <TableCell>Compacter</TableCell>
-                <TableCell>Output Wt</TableCell>
+                <TableCell>Date Given</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {dyeingList.map((d) => (
                 <TableRow key={d.id}>
                   <TableCell>{d.lot_no}</TableCell>
-                  <TableCell>{d.greyFabricLot?.id || '-'}</TableCell>
+                  <TableCell>{d.initial_weight ?? '-'}</TableCell>
+                  <TableCell>{d.final_weight ?? '-'}</TableCell>
+                  <TableCell>{calcProcessLoss(d.initial_weight, d.final_weight)}</TableCell>
                   <TableCell>{d.knitterDcNo || '-'}</TableCell>
                   <TableCell>{d.companyDcNo || '-'}</TableCell>
                   <TableCell>{d.colour?.name}</TableCell>
                   <TableCell>{d.dyerName?.name}</TableCell>
                   <TableCell>{d.compacter?.name || '-'}</TableCell>
-                  <TableCell>{d.final_weight}</TableCell>
+                  <TableCell>{d.dateGiven ? new Date(d.dateGiven).toLocaleDateString() : '-'}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={getStatus(d)}
+                      color={getStatus(d) === 'In Dyeing' ? 'success' : 'warning'}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <IconButton onClick={() => handleEditOpen(d)}><Edit /></IconButton>
+                    <IconButton onClick={() => handleDelete(d.id)}><Delete /></IconButton>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -305,19 +129,64 @@ const DyeingPage = () => {
         </TableContainer>
       )}
 
-      {/* Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-      >
-        <Alert
-          severity={snackbar.severity}
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+      {/* Edit Dialog – unchanged except status shown as read‑only */}
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Dyeing Record</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} mt={1}>
+            <Grid item xs={6}>
+              <TextField label="Lot No." fullWidth disabled value={selectedDyeing?.lot_no || ''} />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField label="Final Weight (kg)" fullWidth disabled value={selectedDyeing?.final_weight || ''} />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField label="Received Weight (kg)" type="number" fullWidth value={editForm.initial_weight}
+                onChange={e => setEditForm({...editForm, initial_weight: e.target.value})} />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField label="Knitter DC No." fullWidth value={editForm.knitterDcNo}
+                onChange={e => setEditForm({...editForm, knitterDcNo: e.target.value})} />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField label="Company DC No." fullWidth value={editForm.companyDcNo}
+                onChange={e => setEditForm({...editForm, companyDcNo: e.target.value})} />
+            </Grid>
+            <Grid item xs={6}>
+              <Autocomplete
+                options={compacters}
+                getOptionLabel={o => o.name}
+                value={compacters.find(c => c.id === editForm.compacterId) || null}
+                onChange={(e, v) => setEditForm({...editForm, compacterId: v?.id || null})}
+                renderInput={(params) => <TextField {...params} label="Compacter" />}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField label="Date Given" type="date" fullWidth InputLabelProps={{ shrink: true }}
+                value={editForm.dateGiven} onChange={e => setEditForm({...editForm, dateGiven: e.target.value})} />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField label="Colour" fullWidth disabled value={selectedDyeing?.colour?.name || ''} />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField label="Dyer" fullWidth disabled value={selectedDyeing?.dyerName?.name || ''} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Status"
+                fullWidth
+                disabled
+                value={selectedDyeing ? (selectedDyeing.companyDcNo && selectedDyeing.dateGiven ? 'In Dyeing' : 'Awaiting DC') : ''}
+                helperText="Auto‑calculated from Company DC & Date Given"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleEditSave}>Save</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
