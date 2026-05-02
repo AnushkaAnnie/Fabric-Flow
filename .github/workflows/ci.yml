@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend-tests:
-    name: Backend Tests (Express + Prisma)
+    name: Backend Tests (Express + PostgreSQL)
     runs-on: ubuntu-latest
 
     services:
