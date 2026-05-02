@@ -1,12 +1,12 @@
 # FabricFlow — Yarn & Fabric Tracking System
 
-A full-stack, production-ready system to track the textile manufacturing lifecycle (Yarn &rarr; Knitting &rarr; Dyeing &rarr; Compacting). Built for dual deployment (Offline Desktop via Electron + SQLite AND Cloud via React + PostgreSQL).
+A full-stack, production-ready system to track the textile manufacturing lifecycle (Yarn &rarr; Knitting &rarr; Dyeing &rarr; Compacting). Built for deployment as a Cloud web app (React + Node.js + PostgreSQL) and Offline Desktop app (Electron).
 
 ## 🚀 Features
 - **Strict Dropdown Workflows:** All inputs pull from master data.
 - **Auto-Calculations:** Total weights, costs, and process/yield loss.
 - **Responsive UI:** Dark theme, tabular navigation.
-- **Offline Capable:** Packaged via Electron with a local SQLite DB.
+- **Offline Capable:** Packaged via Electron.
 - **Cloud Ready:** Postgres Docker-compose support.
 
 ## 🛠️ Stack
@@ -25,10 +25,11 @@ A full-stack, production-ready system to track the textile manufacturing lifecyc
    cd backend && npm install
    cd ../frontend && npm install
    ```
-3. **Database Setup (SQLite)**
+3. **Database Setup (PostgreSQL)**
+   Make sure you have PostgreSQL running locally (e.g. via Docker Compose or natively).
    ```bash
    cd backend
-   npx prisma migrate dev --name init
+   npx prisma db push
    npm run db:seed
    ```
 4. **Start the App**
@@ -63,6 +64,5 @@ To run the backend with PostgreSQL via Docker:
 ```bash
 docker-compose up -d
 ```
-You will need to manually change `provider = "sqlite"` to `provider = "postgresql"` in `backend/prisma/schema.prisma` before building the Docker image if you intend to use Postgres.
 
 For frontend, build using `cd frontend && npm run build` and deploy the `dist` folder to Vercel/Netlify. Ensure `VITE_API_URL` is set to your cloud backend URL.
