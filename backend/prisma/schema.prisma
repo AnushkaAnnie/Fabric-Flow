@@ -31,27 +31,27 @@ model MillName {
 }
 
 model KnitterName {
-  id                 Int               @id @default(autoincrement())
-  name               String            @unique
-  address_line1      String?
-  address_line2      String?
-  address_line3      String?
-  state              String?
-  pin_code           String?
-  gstn               String?
-  email              String?
-  yarn_balance       Float             @default(0)
-  createdAt          DateTime          @default(now())
-  knittings          Knitting[]
-  knitterStocks      KnitterStock[]
-  deliveryNotesSent  DeliveryNote[]    @relation("SourceKnitterTransfers")
-  deliveryNotesReceived DeliveryNote[]  @relation("DestKnitterTransfers")
-  knitterPrograms    KnitterProgram[]
+  id                    Int              @id @default(autoincrement())
+  name                  String           @unique
+  address_line1         String?
+  address_line2         String?
+  address_line3         String?
+  state                 String?
+  pin_code              String?
+  gstn                  String?
+  email                 String?
+  yarn_balance          Float            @default(0)
+  createdAt             DateTime         @default(now())
+  knittings             Knitting[]
+  knitterStocks         KnitterStock[]
+  deliveryNotesSent     DeliveryNote[]   @relation("SourceKnitterTransfers")
+  deliveryNotesReceived DeliveryNote[]   @relation("DestKnitterTransfers")
+  knitterPrograms       KnitterProgram[]
 }
 
 model DyerName {
-  id            Int      @id @default(autoincrement())
-  name          String   @unique
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
   address_line1 String?
   address_line2 String?
   address_line3 String?
@@ -59,7 +59,7 @@ model DyerName {
   pin_code      String?
   gstn          String?
   email         String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime      @default(now())
   dyeings       Dyeing[]
   knittingLots  KnittingLot[]
 }
@@ -76,6 +76,7 @@ model CompacterName {
   email         String?
   createdAt     DateTime     @default(now())
   compactings   Compacting[]
+  dyeings       Dyeing[]
 }
 
 model Colour {
@@ -116,14 +117,14 @@ model Yarn {
   no_of_bags        Float
   bag_weight        Float
   total_weight      Float
-  available_weight  Decimal             @default(0)
+  available_weight  Float               @default(0)
   rate_per_kg       Float
   total_cost        Float
   issued_date       DateTime            @default(now())
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   yarnUsages        KnittingYarnUsage[]
-
+  receipts          YarnReceipt[]
   knitterStocks     KnitterStock[]
   deliveryNotes     DeliveryNote[]
   knitterPrograms   KnitterProgram[]
@@ -150,7 +151,7 @@ model KnittingYarnUsage {
   yarn        Yarn     @relation(fields: [yarn_id], references: [id])
   yarn_id     Int
   hf_code     String
-  quantity    Float      @default(0)
+  quantity    Float    @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -209,90 +210,91 @@ model Knitting {
   dyeingLotIssues       DyeingLot[]
 }
 
-model Dyeing {
-  id                    Int              @id @default(autoincrement())
-  dyeingId              String           @unique @default(cuid())
-  hf_code               String
-  source_type           String           @default("KNITTING")
-  fabric_code           String?
-  count                 String           @default("")
-  lot_no                String           @unique
-  initial_weight        Float
-  output_weight         Float?
-  dyerName              DyerName         @relation(fields: [dyer_name_id], references: [id])
-  dyer_name_id          Int
-  washType              WashType         @relation(fields: [wash_type_id], references: [id])
-  wash_type_id          Int
-  colour                Colour           @relation(fields: [colour_id], references: [id])
-  colour_id             Int
-  gg                    Float
-  gauge                 String?
-  loop_length           Float?
-  initial_dia           Float
-  final_dia             Float
-  no_of_rolls           Int
-  final_weight          Float
-  process_loss          Float
-  greyFabricLot         GreyFabricLot?   @relation(fields: [grey_fabric_lot_id], references: [id])
-  grey_fabric_lot_id    Int?             @unique
-  date                  DateTime
-  knitting_lot_entry_id Int?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-}
-
 model KnitterStock {
-  id              Int          @id @default(autoincrement())
-  knitterName     KnitterName  @relation(fields: [knitterId], references: [id])
-  knitterId       Int
-  yarn            Yarn         @relation(fields: [yarnId], references: [id])
-  yarnId          Int
-  received_weight Decimal      
-  remaining_weight Decimal     
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id               Int         @id @default(autoincrement())
+  knitterName      KnitterName @relation(fields: [knitterId], references: [id])
+  knitterId        Int
+  yarn             Yarn        @relation(fields: [yarnId], references: [id])
+  yarnId           Int
+  received_weight  Float
+  remaining_weight Float
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 }
 
 model DeliveryNote {
-  id                Int         @id @default(autoincrement())
-  sourceKnitter     KnitterName @relation("SourceKnitterTransfers", fields: [sourceKnitterId], references: [id])
-  sourceKnitterId   Int
-  destKnitter       KnitterName @relation("DestKnitterTransfers", fields: [destKnitterId], references: [id])
-  destKnitterId     Int
-  yarn              Yarn        @relation(fields: [yarnId], references: [id])
-  yarnId            Int
-  quantity          Decimal
-  transferDate      DateTime    @default(now())
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  id              Int         @id @default(autoincrement())
+  sourceKnitter   KnitterName @relation("SourceKnitterTransfers", fields: [sourceKnitterId], references: [id])
+  sourceKnitterId Int
+  destKnitter     KnitterName @relation("DestKnitterTransfers", fields: [destKnitterId], references: [id])
+  destKnitterId   Int
+  yarn            Yarn        @relation(fields: [yarnId], references: [id])
+  yarnId          Int
+  quantity        Float
+  transferDate    DateTime    @default(now())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }
 
 model KnitterProgram {
-  id               Int            @id @default(autoincrement())
-  knitterName      KnitterName    @relation(fields: [knitterId], references: [id])
-  knitterId        Int
-  yarn             Yarn           @relation(fields: [yarnId], references: [id])
-  yarnId           Int
-  quantity_used    Decimal
-  grey_weight      Decimal
-  number_of_rolls  Int            @default(0)
-  gauge            String?
-  loop_length      Decimal?
-  productionDate   DateTime       @default(now())
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  greyFabricLot    GreyFabricLot?
+  id              Int            @id @default(autoincrement())
+  knitterName     KnitterName    @relation(fields: [knitterId], references: [id])
+  knitterId       Int
+  yarn            Yarn           @relation(fields: [yarnId], references: [id])
+  yarnId          Int
+  quantity_used   Float
+  grey_weight     Float
+  number_of_rolls Int            @default(0)
+  gauge           String?
+  loop_length     Float?
+  productionDate  DateTime       @default(now())
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  greyFabricLot   GreyFabricLot?
 }
 
 model GreyFabricLot {
-  id                Int            @id @default(autoincrement())
-  knitterProgram    KnitterProgram  @relation(fields: [knitterProgramId], references: [id], onDelete: Cascade)
-  knitterProgramId  Int            @unique
-  grey_weight       Decimal
-  status            String         @default("AVAILABLE")
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  dyeing            Dyeing?
+  id               Int            @id @default(autoincrement())
+  knitterProgram   KnitterProgram @relation(fields: [knitterProgramId], references: [id], onDelete: Cascade)
+  knitterProgramId Int            @unique
+  grey_weight      Float
+  status           String         @default("AVAILABLE")
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  dyeings          Dyeing[]
+}
+
+model Dyeing {
+  id                Int              @id @default(autoincrement())
+  lot_no            String
+  hf_code           String?
+  source_type       String?
+  fabric_code       String?
+  count             String?
+  initial_weight    Float?
+  gg                Float?
+  initial_dia       Float?
+  final_dia         Float?
+  no_of_rolls       Int?
+  final_weight      Float?
+  process_loss      Float?
+  date              DateTime         @default(now())
+  knitterDcNo       String?
+  companyDcNo       String?
+  compacterId       Int?
+  greyFabricLotId   Int?             @unique
+  colour_id         Int
+  dyer_name_id      Int
+  wash_type_id      Int?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  dyerName          DyerName         @relation(fields: [dyer_name_id], references: [id])
+  washType          WashType?        @relation(fields: [wash_type_id], references: [id])
+  colour            Colour           @relation(fields: [colour_id], references: [id])
+  greyFabricLot     GreyFabricLot?   @relation(fields: [greyFabricLotId], references: [id])
+  compacter         CompacterName?   @relation(fields: [compacterId], references: [id])
+
+  @@map("dyeings")
 }
 
 model Compacting {
@@ -313,7 +315,17 @@ model Compacting {
   updatedAt         DateTime      @updatedAt
 }
 
-
+model YarnReceipt {
+  id          Int      @id @default(autoincrement())
+  yarn        Yarn     @relation(fields: [yarnId], references: [id])
+  yarnId      Int
+  quantity    Float
+  receiptDate DateTime @default(now())
+  dcNo        String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
 
 model GreyFabric {
   id          Int      @id @default(autoincrement())
@@ -330,13 +342,13 @@ model GreyFabric {
 }
 
 model DyeingOrder {
-  id        Int      @id @default(autoincrement())
-  dcNo      String   @unique
+  id        Int         @id @default(autoincrement())
+  dcNo      String      @unique
   dyerName  String
-  issueDate DateTime @default(now())
+  issueDate DateTime    @default(now())
   notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
   lots      DyeingLot[]
 }
 

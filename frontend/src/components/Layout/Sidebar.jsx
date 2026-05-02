@@ -11,7 +11,6 @@ const menuItems = [
   { text: 'Fabric Purchase', icon: <Layers size={20} />, path: '/fabric-purchase' },
   { text: 'Knitting', icon: <Scissors size={20} />, path: '/knitting' },
   { text: 'Dyeing', icon: <Droplets size={20} />, path: '/dyeing' },
-  { text: 'Issue to Dyer', icon: <Send size={20} />, path: '/issue-to-dyer' },
   { text: 'Compacting', icon: <PackageCheck size={20} />, path: '/compacting' },
   { text: 'Search & Track', icon: <Search size={20} />, path: '/search' },
   { text: 'Master Data', icon: <Database size={20} />, path: '/master' },

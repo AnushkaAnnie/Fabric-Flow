@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('../prisma/generated/client');
 const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
@@ -38,6 +38,17 @@ async function main() {
     });
   }
 
+  // Seed some compacter names
+  const compacters = ['Compactor-1', 'Super Compacter Ltd'];
+  for (const c of compacters) {
+    await prisma.compacterName.upsert({
+      where: { name: c },
+      update: {},
+      create: { name: c },
+    });
+  }
+
+
   // Seed yarn receipts (sample inbound records)
   // Find the first yarn in the database
   const yarn = await prisma.yarn.findFirst();
@@ -73,40 +84,6 @@ async function main() {
     console.log('Created sample grey fabric specs.');
   }
 
-  // Seed dyeing order with lots
-  const knittings = await prisma.knitting.findMany({ take: 2 });
-  if (knittings.length > 0) {
-    const lotsData = [];
-    for (const k of knittings) {
-      const grey = await prisma.greyFabric.findUnique({ where: { knittingId: k.id } });
-      if (grey) {
-        lotsData.push({
-          knittingId: k.id,
-          colour: 'Sample Red',
-          weight: Math.min(50, grey.quantity / 2),
-        });
-      }
-    }
-
-    if (lotsData.length > 0) {
-      try {
-        const order = await prisma.dyeingOrder.create({
-          data: {
-            dcNo: 'DC-ORDER-001',
-            dyerName: 'Sample Dyer',
-            issueDate: new Date(),
-            notes: 'Sample dyeing order',
-            lots: {
-              create: lotsData,
-            },
-          },
-        });
-        console.log('Created sample dyeing order.');
-      } catch (e) {
-        console.log('Could not create sample dyeing order (may already exist or missing grey fabric).');
-      }
-    }
-  }
 
   console.log('Seeding finished.');
 }

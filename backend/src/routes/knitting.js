@@ -676,4 +676,153 @@ router.post('/issue', async (req, res, next) => {
   }
 });
 
+// GET /api/knitting/program — fetch knitting programs for a knitter
+router.get('/program', async (req, res, next) => {
+  try {
+    const { knitterId } = req.query;
+    const where = {};
+    if (knitterId) where.knitterId = parseInt(knitterId, 10);
+    
+    const programs = await prisma.knitterProgram.findMany({
+      where,
+      include: {
+        yarn: true,
+        knitterName: true,
+        greyFabricLot: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(programs);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/knitting/program — create a new knitting program
+router.post('/program', async (req, res, next) => {
+  try {
+    const { knitterId, yarns, grey_weight, gauge, loop_length, dia, gsm, description, productionDate } = req.body;
+
+    if (!knitterId || !yarns || !yarns.length || !grey_weight) {
+      return res.status(400).json({ message: 'knitterId, yarns array, and grey_weight are required.' });
+    }
+
+    const program = await prisma.knitterProgram.create({
+      data: {
+        knitterId: parseInt(knitterId, 10),
+        grey_weight: parseFloat(grey_weight),
+        gauge: gauge || null,
+        loop_length: loop_length ? parseFloat(loop_length) : null,
+        dia: dia ? parseFloat(dia) : null,
+        gsm: gsm ? parseFloat(gsm) : null,
+        description: description || null,
+        productionDate: productionDate ? new Date(productionDate) : new Date(),
+        yarnId: parseInt(yarns[0].yarnId, 10),
+        quantity_used: parseFloat(yarns[0].quantity_used)
+      },
+      include: {
+        yarn: true,
+        knitterName: true,
+      }
+    });
+
+    res.status(201).json(program);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/knitting/delivery-notes
+router.get('/delivery-notes', async (req, res, next) => {
+  try {
+    const notes = await prisma.deliveryNote.findMany({
+      include: {
+        sourceKnitter: true,
+        destKnitter: true,
+        yarn: true,
+      },
+      orderBy: { transferDate: 'desc' },
+    });
+    res.json(notes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/knitting/delivery-note
+router.post('/delivery-note', async (req, res, next) => {
+  try {
+    const { sourceKnitterId, destKnitterId, yarnId, quantity, transfer_dc_no } = req.body;
+    
+    // Validate inputs
+    if (!sourceKnitterId || !destKnitterId || !yarnId || !quantity) {
+      return res.status(400).json({ message: 'Missing required fields for delivery note' });
+    }
+
+    const qty = parseFloat(quantity);
+
+    // Get source stock
+    const sourceStock = await prisma.knitterStock.findFirst({
+      where: { knitterId: parseInt(sourceKnitterId, 10), yarnId: parseInt(yarnId, 10) }
+    });
+
+    if (!sourceStock || sourceStock.remaining_weight < qty) {
+      return res.status(400).json({ message: 'Insufficient stock in source knitter' });
+    }
+
+    // Transaction to update stocks and create note
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Decrement source stock
+      await tx.knitterStock.update({
+        where: { id: sourceStock.id },
+        data: { remaining_weight: { decrement: qty } }
+      });
+
+      // 2. Increment/Create dest stock
+      const destStock = await tx.knitterStock.findFirst({
+        where: { knitterId: parseInt(destKnitterId, 10), yarnId: parseInt(yarnId, 10) }
+      });
+
+      if (destStock) {
+        await tx.knitterStock.update({
+          where: { id: destStock.id },
+          data: { 
+            remaining_weight: { increment: qty },
+            received_weight: { increment: qty }
+          }
+        });
+      } else {
+        await tx.knitterStock.create({
+          data: {
+            knitterId: parseInt(destKnitterId, 10),
+            yarnId: parseInt(yarnId, 10),
+            received_weight: qty,
+            remaining_weight: qty
+          }
+        });
+      }
+
+      // 3. Create delivery note
+      return await tx.deliveryNote.create({
+        data: {
+          sourceKnitterId: parseInt(sourceKnitterId, 10),
+          destKnitterId: parseInt(destKnitterId, 10),
+          yarnId: parseInt(yarnId, 10),
+          quantity: qty,
+          transfer_dc_no: transfer_dc_no || null,
+        },
+        include: {
+          sourceKnitter: true,
+          destKnitter: true,
+          yarn: true,
+        }
+      });
+    });
+
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

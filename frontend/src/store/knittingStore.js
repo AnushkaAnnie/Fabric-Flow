@@ -104,6 +104,19 @@ const useKnittingStore = create((set, get) => ({
   greyFabricLoading: false,
   greyFabricError: null,
 
+  fetchGreyFabricForKnitter: async (knitterId) => {
+    set({ greyFabricLoading: true, greyFabricError: null });
+    try {
+      const res = await knittingApi.getGreyFabricAvailable(knitterId);
+      set({ greyFabricList: res.data, greyFabricLoading: false });
+    } catch (err) {
+      set({
+        greyFabricError: err.response?.data?.message || 'Failed to fetch grey fabric',
+        greyFabricLoading: false,
+      });
+    }
+  },
+
   fetchGreyFabric: async () => {
     set({ greyFabricLoading: true, greyFabricError: null });
     try {

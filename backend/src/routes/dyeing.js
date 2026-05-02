@@ -113,6 +113,79 @@ router.post('/', async (req, res, next) => {
   }
 });
 
+// POST /api/dyeing/program — NEW: dyeing from grey fabric lot
+router.post('/program', async (req, res, next) => {
+  try {
+    const {
+      greyFabricLotId,
+      dyerId,
+      lot_no,
+      colour_id,
+      output_weight,
+      gauge,
+      loop_length,
+      knitterDcNo,
+      companyDcNo,
+      compacterId,
+    } = req.body;
+
+    if (!greyFabricLotId || !dyerId || !lot_no || !colour_id || output_weight == null) {
+      return res.status(400).json({
+        message: 'Missing required fields: grey lot, dyer, lot_no, colour, output_weight',
+      });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const lot = await tx.greyFabricLot.findUnique({
+        where: { id: parseInt(greyFabricLotId) },
+        include: { knitterProgram: true },
+      });
+
+      if (!lot || lot.status !== 'AVAILABLE') {
+        throw new Error('Grey fabric lot is not available');
+      }
+
+      await tx.greyFabricLot.update({
+        where: { id: lot.id },
+        data: { status: 'CONSUMED' },
+      });
+
+      const dyeing = await tx.dyeing.create({
+        data: {
+          lot_no,
+          colour_id: parseInt(colour_id),
+          dyer_name_id: parseInt(dyerId),
+          initial_weight: parseFloat(lot.grey_weight),
+          final_weight: parseFloat(output_weight),
+          gg: gauge ? parseFloat(gauge) : 0,
+          no_of_rolls: lot.knitterProgram?.number_of_rolls || 0,
+          knitterDcNo,
+          companyDcNo,
+          compacterId: compacterId ? parseInt(compacterId) : null,
+          greyFabricLotId: lot.id,
+          process_loss: lot.grey_weight > 0
+            ? ((parseFloat(lot.grey_weight) - parseFloat(output_weight)) / parseFloat(lot.grey_weight)) * 100
+            : 0,
+          date: new Date(),
+          source_type: 'GREY_FABRIC',
+        },
+        include: {
+          dyerName: true,
+          colour: true,
+          greyFabricLot: true,
+          compacter: true,
+        },
+      });
+
+      return dyeing;
+    });
+
+    res.status(201).json({ message: 'Dyeing program created', dyeing: result });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PUT /api/dyeing/:id
 router.put('/:id', async (req, res, next) => {
   try {
